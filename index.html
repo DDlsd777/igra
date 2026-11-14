@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Mini Balatro</title>
+<style>
+:root{--gold:#f1c40f;--card-bg:#fbf7ee;--black:#1d2433;--red:#c8323c;--panel:#2f3d2e;--panel-dark:#1f2a1e}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:system-ui,sans-serif;color:#fff;overflow:hidden;user-select:none;
+  background:radial-gradient(ellipse at 60% 40%,#7d916c 0%,#44573f 70%,#2c3a2a 100%)}
+
+/* ---------- Каркас ---------- */
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;gap:6px;padding:6px;max-width:1000px;margin:0 auto}
+
+/* ---------- Верх: блайнд и кнопки ---------- */
+.top{display:flex;gap:6px;align-items:stretch}
+.blindBox{flex:1;background:var(--panel);border:2px solid var(--panel-dark);border-radius:10px;padding:6px;text-align:center;min-width:0}
+.blindName{font-weight:700;font-size:16px;background:#6e8a63;border-radius:8px;padding:5px;text-shadow:0 2px 0 #222}
+.blindName.boss{background:#8b2d24}
+#bossInfo{font-size:11px;color:#ffb3a7;min-height:14px;margin-top:3px}
+.target{font-size:12px;margin-top:2px}
+.target b{display:block;font-size:24px;color:#ff5a4a;text-shadow:0 2px 0 #000}
+.topBtns{display:flex;flex-direction:column;gap:6px;width:60px}
+.topBtns button{flex:1;padding:0;font-size:20px;border-radius:10px}
+
+/* ---------- Статистика ---------- */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.box{background:var(--panel);border:2px solid var(--panel-dark);border-radius:10px;padding:4px 2px;text-align:center;font-size:11px}
+.box b{display:block;font-size:20px;color:#fff;line-height:1.2}
+.box.money b{color:#f5a623}
+
+/* ---------- Джокеры: лежат внахлёст ---------- */
+.jokers{display:flex;justify-content:center;align-items:flex-end;min-height:100px;padding:4px 0;position:relative}
+.joker{flex:0 0 auto;width:72px;height:92px;margin-left:-26px;background:#fff;color:#222;border-radius:8px;border:2px solid #555;padding:4px;font-size:9px;text-align:center;overflow:hidden;box-shadow:0 4px 8px rgba(0,0,0,.4);animation:pop .4s;cursor:pointer}
+.joker:first-child{margin-left:0}
+.joker b{display:block;font-size:11px;margin-bottom:2px}
+.joker.legend{background:linear-gradient(135deg,#b7950b,#f1c40f)}
+.joker .trig{display:block;opacity:.7;font-size:8px;margin-top:2px}
+.joker .edLabel{display:block;font-size:8px;font-weight:700;margin-bottom:2px;color:#6a1b9a}
+
+/* издания джокеров */
+.joker.ed-foil{box-shadow:0 0 0 3px #9fd8ff,0 4px 8px rgba(0,0,0,.4)}
+.joker.ed-holo{background:linear-gradient(135deg,#fff,#ffd6f5,#d6f0ff)}
+.joker.ed-poly{border:3px solid transparent;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(90deg,#f66,#fd6,#6f6,#6cf,#c6f) border-box}
+
+.emptyNote{font-size:12px;opacity:.55;padding:4px 2px}
+.consRow{display:flex;gap:6px;overflow-x:auto;min-height:34px}
+.consRow button{flex:0 0 auto;font-size:12px;padding:6px 10px}
+
+/* ---------- Подсказки ---------- */
+.curHand{text-align:center;font-size:14px;min-height:22px;background:rgba(0,0,0,.3);border-radius:8px;padding:4px 8px}
+#msg{text-align:center;color:#ffe08a;min-height:36px;font-size:13px;line-height:1.3;padding:0 4px}
+
+/* ---------- Рука и колода ---------- */
+.handWrap{flex:1;min-height:120px;position:relative;display:flex;align-items:flex-end}
+.hand{flex:1;display:flex;align-items:flex-end;justify-content:safe center;gap:0;overflow-x:auto;padding:8px 62px 8px 4px;min-width:0}
+.gcard{position:relative;flex:0 0 48px;width:48px;height:68px;margin-left:-12px;background:radial-gradient(circle at 30% 20%,#fff 0%,transparent 60%),var(--card-bg);border:1px solid #d9d0bb;border-radius:8px;color:var(--black);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 5px 10px rgba(0,0,0,.45);transition:transform .2s cubic-bezier(.2,.8,.3,1.2),box-shadow .2s}
+.gcard:first-child{margin-left:0}
+.gcard.red{color:var(--red)}
+.gcard.selected{transform:translateY(-12px);border-color:var(--gold);box-shadow:0 8px 14px #000a,0 0 0 2px var(--gold)}
+.gcard.deal{animation:deal .35s both}
+.gcard.enh-gold{border:2px solid #f1c40f}
+.gcard.enh-bonus{border:2px solid #3498db}
+.gcard.enh-mult{border:2px solid #e74c3c}
+.gcard.down{background:repeating-linear-gradient(45deg,#2b3ed0 0 6px,#1d2a8f 6px 12px);border:2px solid #fff;cursor:not-allowed}
+.gcard::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);mix-blend-mode:overlay;opacity:0;transition:opacity .3s;pointer-events:none}
+.gcard.selected::after{opacity:.9}
+.gcard .corner{position:absolute;display:flex;flex-direction:column;align-items:center;font-weight:800;line-height:1}
+.gcard .corner b{font-size:12px;letter-spacing:-1px}
+.gcard .corner i{font-style:normal;font-size:10px;margin-top:1px}
+.gcard .tl{top:3px;left:4px}
+.gcard .br{bottom:3px;right:4px;transform:rotate(180deg)}
+.gcard .pip{font-size:22px;opacity:.92}
+.deckBox{position:absolute;right:0;bottom:8px;width:50px;height:68px;border-radius:7px;border:2px solid #fff;background:repeating-linear-gradient(45deg,#2b3ed0 0 6px,#1d2a8f 6px 12px);display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px;box-shadow:0 5px 10px rgba(0,0,0,.5)}
+#deckCount{background:rgba(0,0,0,.65);padding:1px 6px;border-radius:6px;font-size:12px;font-weight:700}
+
+/* ---------- Нижние кнопки ---------- */
+.actions{display:grid;grid-template-columns:1.2fr 1.3fr 1.1fr 1fr;gap:6px}
+.actions button{padding:12px 4px;font-size:13px;border-radius:10px;min-width:0}
+
+/* ---------- Кнопки ---------- */
+button{background:#27ae60;color:#fff;border:none;padding:10px 12px;border-radius:9px;font-size:14px;cursor:pointer;transition:transform .1s,box-shadow .1s;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
+button:disabled{background:#555;cursor:not-allowed;box-shadow:none}
+button.alt{background:#1b8be0}
+button.red{background:#e0412f}
+button.gray{background:#7f8c8d}
+button.orange{background:#f39c12}
+
+/* ---------- Оверлеи ---------- */
+.overlay{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:12px;z-index:5}
+.overlay.show{display:flex}
+.panel{background:var(--panel);border-radius:10px;padding:12px;width:100%;max-width:440px;max-height:90vh;overflow:auto}
+.item{display:flex;justify-content:space-between;align-items:center;background:#1e3026;padding:8px;border-radius:6px;margin-bottom:6px;font-size:14px;gap:6px}
+.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #fff2}
+.tabs{display:flex;gap:6px;margin-bottom:8px}
+.tabs button{flex:1}
+h2.t{text-align:center;color:var(--gold);margin:0 0 10px}
+#shopMsg{text-align:center;color:#ffe08a;min-height:20px;margin-bottom:6px;font-size:14px}
+.popup{position:fixed;top:40%;left:50%;font-size:30px;font-weight:bold;color:var(--gold);text-shadow:0 2px 4px #000;pointer-events:none;animation:float 1.2s forwards;z-index:10}
+
+/* ---------- Увеличенный джокер ---------- */
+#jokerZoom{align-items:center;justify-content:center}
+.zoomCard{width:210px;min-height:280px;background:#fff;color:#222;border-radius:14px;border:4px solid var(--gold);padding:18px;font-size:18px;text-align:center;box-shadow:0 10px 30px #000;animation:pop .25s}
+.zoomCard b{display:block;font-size:24px;margin-bottom:12px}
+.zoomCard small{display:block;margin-top:14px;font-size:14px;opacity:.7}
+.zoomCard.legend{background:linear-gradient(135deg,#b7950b,#f1c40f)}
+.zoomCard .edLabel{display:block;font-size:14px;color:#6a1b9a;margin-bottom:8px}
+.zoomHint{color:#fff;font-size:13px;margin-top:14px;opacity:.8}
+
+@keyframes deal{from{transform:translateY(-40px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes float{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}100%{opacity:0;transform:translate(-50%,-150%)}}
+
+/* ---------- Большой экран ---------- */
+@media (min-width:700px){
+  .gcard{flex:0 0 62px;width:62px;height:88px;margin-left:-16px}
+  .gcard .corner b{font-size:15px}
+  .gcard .corner i{font-size:12px}
+  .gcard .pip{font-size:30px}
+  .deckBox{width:62px;height:88px}
+  .joker{width:96px;height:112px;margin-left:-34px;font-size:10px}
+  .joker b{font-size:12px}
+  .box b{font-size:24px}
+  .actions button{font-size:15px;padding:14px 4px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Верх: блайнд и кнопки -->
+  <div class="top">
+    <div class="blindBox">
+      <div id="blindStat" class="blindName">-</div>
+      <div id="bossInfo"></div>
+      <div class="target">Цель<b id="target">-</b></div>
+    </div>
+    <div class="topBtns">
+      <button id="boardBtn" class="alt">🏆</button>
+      <button id="soundBtn" class="gray">🔊</button>
+    </div>
+  </div>
+
+  <!-- Статистика -->
+  <div class="stats">
+    <div class="box">Очки раунда<b id="score">0</b></div>
+    <div class="box">Руки<b id="hands">0</b></div>
+    <div class="box">Сбросы<b id="discards">0</b></div>
+    <div class="box money">Деньги<b id="money">$0</b></div>
+    <div class="box">Антэ<b id="ante">-</b></div>
+    <div class="box">Колода<b id="deckLeftLabel">0</b></div>
+  </div>
+
+  <!-- Джокеры: лежат внахлёст, по нажатию открываются крупно -->
+  <div id="jokers" class="jokers"></div>
+
+  <!-- Рука и колода -->
+  <div class="handWrap">
+    <div id="hand" class="hand"></div>
+    <div class="deckBox"><span id="deckCount">0</span></div>
+  </div>
+
+  <!-- Подсказки и расходники ниже карт -->
+  <div id="lastHand" style="display:none">Комбинация: —</div>
+  <div id="curHand" class="curHand"></div>
+  <div id="consumables" class="consRow"></div>
+  <div id="msg"></div>
+
+  <!-- Нижние кнопки -->
+  <div class="actions">
+    <button id="playBtn" class="alt">▶ Сыграть</button>
+    <button id="sortBtn" class="orange">🔀 Сортировка</button>
+    <button id="discardBtn" class="red">♻ Сброс</button>
+    <button id="skipBtn" class="gray">⏭ Пропуск</button>
+  </div>
+
+  <!-- ОВЕРЛЕИ -->
+  <div class="overlay show" id="menu">
+    <div class="panel">
+      <h2 class="t" id="menuTitle">Выбор колоды</h2>
+      <div id="deckList"></div>
+      <button id="continueBtn" class="alt" style="width:100%;margin-top:8px;display:none">Продолжить сохранённую игру</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="shop">
+    <div class="panel">
+      <h2 class="t">🛒 Магазин</h2>
+      <div id="shopMsg"></div>
+      <div id="shopItems"></div>
+      <button id="rerollBtn" class="gray" style="width:100%;margin-top:4px">🔄 Обновить ($2)</button>
+      <button id="nextBtn" class="alt" style="width:100%;margin-top:6px">Дальше ▶</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="board">
+    <div class="panel">
+      <h2 class="t" id="boardTitle">🏆 Таблица лидеров</h2>
+      <div class="tabs">
+        <button id="tabWeek" class="alt">Неделя</button>
+        <button id="tabAll" class="gray">Всё время</button>
+      </div>
+      <div id="boardList">Загрузка...</div>
