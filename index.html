@@ -4,6 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+// Автообход кэша: если на сервере файл новее, перезагружаемся с новым ?v=
+(async()=>{
+  try{
+    const r = await fetch(location.pathname + '?nc=' + Date.now(), {cache:'no-store'});
+    const t = await r.text();
+    let h = 0;
+    for(let i = 0; i < t.length; i++) h = (h*31 + t.charCodeAt(i)) | 0;
+    if(localStorage.getItem('build') !== String(h)){
+      localStorage.setItem('build', String(h));
+      const u = new URL(location.href);
+      u.searchParams.set('v', h);
+      location.replace(u.toString());
+    }
+  }catch(e){}
+})();
+</script>  
 <title>Mini Balatro</title>
 <style>
 :root{--gold:#f1c40f;--card-bg:#fbf7ee;--black:#1d2433;--red:#c8323c;--panel:#2f3d2e;--panel-dark:#1f2a1e}
