@@ -68,6 +68,8 @@ body{font-family:system-ui,sans-serif;color:#fff;overflow:hidden;user-select:non
 .gcard.hit{filter:brightness(1.3);box-shadow:0 0 0 3px #fff,0 0 18px 4px var(--gold)}
 .gcard.flip{animation:flip .4s}
 .gcard.gone{opacity:0;transform:translateY(-120px) scale(.8)}
+.gcard{touch-action:none}
+.gcard.drag{z-index:30;transition:none;box-shadow:0 12px 20px rgba(0,0,0,.6)}
 .gcard .corner{position:absolute;display:flex;flex-direction:column;align-items:center;font-weight:800;line-height:1}
 .gcard .corner b{font-size:12px;letter-spacing:-1px}
 .gcard .corner i{font-style:normal;font-size:10px;margin-top:1px}
@@ -973,12 +975,13 @@ function render(){
   }).join('') || '<span class="emptyNote">Джокеров нет</span>';
 
   const handEl = $('hand'); handEl.innerHTML = '';
-  G.hand.forEach((c,i)=>{
+    G.hand.forEach((c,i)=>{
     const d = document.createElement('div');
     paintCard(d, c, i);
-    d.onclick = ()=>toggle(i);
+    d.dataset.i = i;
     handEl.appendChild(d);
   });
+  fitHand();
 
   $('consumables').innerHTML = G.consumables.map((id,i)=>{
     const c = CONS_BY_ID[id];
