@@ -1531,6 +1531,7 @@ async function startNew(deckId){
     handLevels:defaultLevels(), consumables:[], shopStock:[], goldPlayed:0, rerolled:false,
     active:true, animating:false,
   });
+  G.masterDeck = newMasterDeck();
   savedRun = null;
   STATS.runs++; saveStats();
   hideMenu(); hideHome();
