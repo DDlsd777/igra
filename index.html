@@ -619,9 +619,8 @@ function save(){
   store.set('run', {runId:G.runId, deckId:G.deckId, ante:G.ante, blindIdx:G.blindIdx,
     money:G.money, jokers:G.jokers, jokerEds:G.jokerEds, wins:G.wins, cleared:G.cleared,
     anteBoss:G.anteBoss, handLevels:G.handLevels, consumables:G.consumables,
-        handCounts:G.handCounts, anteSeen:[...G.anteSeen],
+    handCounts:G.handCounts, anteSeen:[...G.anteSeen],
     masterDeck: G.masterDeck ? packDeck(G.masterDeck) : ''});
-    inShop:!!G.inShop, shopStock:G.inShop ? G.shopStock : [], rerolled:!!G.rerolled});
 }
 
 /* ---------- Утилиты ---------- */
