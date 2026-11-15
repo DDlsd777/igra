@@ -670,7 +670,8 @@ function evalHand(cards){
   const freq = Object.values(counts).sort((a,b)=>b-a);
   const isFlush = cards.length===5 && suits.every(s=>s===suits[0]);
   const idx = ranks.map(r=>RANKS.indexOf(r)).sort((a,b)=>a-b);
-  const isStraight = cards.length===5 && idx.every((v,i)=> i===0 || v===idx[i-1]+1);
+    const isWheel = cards.length===5 && idx.join(',')==='0,1,2,3,12';
+  const isStraight = cards.length===5 && (isWheel || idx.every((v,i)=> i===0 || v===idx[i-1]+1));
   if(isStraight && isFlush) return 'Стрит-флеш';
   if(freq[0]===4) return 'Каре';
   if(freq[0]===3 && freq[1]===2) return 'Фулл-хаус';
