@@ -1126,6 +1126,49 @@ function toggle(i){
   showCardInfo(i);
 }
 
+/* ---------- Перестановка карт свайпом ---------- */
+let cd = null;
+const handDragEl = $('hand');
+
+handDragEl.addEventListener('pointerdown', e=>{
+  if(G.animating || sorting) return;
+  const el = e.target.closest('.gcard');
+  if(!el) return;
+  cd = {i:+el.dataset.i, el, startX:e.clientX, moved:false};
+  try{ el.setPointerCapture(e.pointerId); }catch(err){}
+});
+
+handDragEl.addEventListener('pointermove', e=>{
+  if(!cd) return;
+  const dx = e.clientX - cd.startX;
+  if(!cd.moved && Math.abs(dx) > 8){ cd.moved = true; cd.el.classList.add('drag'); }
+  if(cd.moved) cd.el.style.transform = `translateX(${dx}px) translateY(-16px) scale(1.06)`;
+});
+
+handDragEl.addEventListener('pointerup', e=>{
+  if(!cd) return;
+  const {i, moved} = cd;
+  cd = null;
+  if(!moved){ toggle(i); return; }
+  let k = 0;
+  [...handDragEl.children].forEach((c, j)=>{
+    if(j === i) return;
+    const r = c.getBoundingClientRect();
+    if(r.left + r.width/2 < e.clientX) k++;
+  });
+  if(k !== i){
+    const selCards = [...G.selected].map(x=>G.hand[x]);
+    const [card] = G.hand.splice(i, 1);
+    G.hand.splice(k, 0, card);
+    G.selected = new Set(selCards.map(c=>G.hand.indexOf(c)));
+    document.querySelectorAll('.sortBox button').forEach(b=>b.classList.remove('active'));
+    sfx('select');
+  }
+  render();
+});
+
+handDragEl.addEventListener('pointercancel', ()=>{ cd = null; render(); });
+
 /* ---------- Анимированная сортировка ---------- */
 let sorting = false;
 const byRank = (a,b)=> RANKS.indexOf(b.rank)-RANKS.indexOf(a.rank) || SUITS.indexOf(a.suit)-SUITS.indexOf(b.suit);
