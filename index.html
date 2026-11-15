@@ -788,6 +788,7 @@ function unpackDeck(str){
 
 // Игровая колода блайнда: копии мастер-карт со ссылкой m на оригинал
 function buildDeck(){
+    if(!G.masterDeck) G.masterDeck = newMasterDeck();
   const d = G.masterDeck.map(m=>({
     rank:m.rank, suit:m.suit, val:RANK_VAL[m.rank], enh:m.enh || null,
     m, fresh:false, down:false
