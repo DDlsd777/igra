@@ -1809,12 +1809,12 @@ function openShop(){
     + `<div class="item"><span>Твои деньги:</span><b>$${G.money}</b></div>`;
 
   $('rerollBtn').disabled = G.rerolled;
-  $('rerollBtn').textContent = G.rerolled ? '🔄 Обновление использовано' : '🔄 Обновить ($2, один раз)';
+  $('rerollBtn').textContent = G.rerolled ? '🔄 Обновление использовано' : '🔄 Обновить ($5, один раз)';
   $('shop').classList.add('show');
 }
 
 function reroll(){
-  const COST = 2;
+  const COST = 5;
   if(G.rerolled) return shopMsg('Обновление уже использовано в этом магазине');
   if(G.money < COST) return shopMsg(`Не хватает денег для обновления: нужно $${COST}, у вас $${G.money}`);
   G.money -= COST;
