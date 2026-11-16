@@ -47,6 +47,12 @@ body{font-family:system-ui,sans-serif;color:#fff;overflow:hidden;user-select:non
 .joker.ed-poly{border:3px solid transparent;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(90deg,#f66,#fd6,#6f6,#6cf,#c6f) border-box}
 
 .emptyNote{font-size:12px;opacity:.55;padding:4px 2px}
+.tagsRow{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.tagsRow:empty{display:none}
+.tagChip{background:#1e3026;border:2px solid #f1c40f;border-radius:8px;padding:3px 7px;font-size:11px;line-height:1.2;text-align:center;color:#fff;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.4)}
+.tagChip b{display:block;color:var(--gold);font-size:11px}
+.tagChip small{display:block;opacity:.75;font-size:9px}
+.tagChip.dbl{border-color:#e67e22}
 .consRow{display:flex;gap:6px;overflow-x:auto;min-height:34px}
 .consRow button{flex:0 0 auto;font-size:12px;padding:6px 10px}
 
@@ -201,7 +207,7 @@ h2.t{text-align:center;color:var(--gold);margin:0 0 10px}
   </div>
 
   <div id="jokers" class="jokers"></div>
-
+  <div id="tagsRow" class="tagsRow"></div>
   <div class="handWrap">
     <div id="hand" class="hand"></div>
     <div class="deckBox"><span id="deckCount">0</span></div>
@@ -635,6 +641,23 @@ function applyTags(trigger){
     return false;
   });
   return notes;
+}
+    // Рисует плашки очереди тегов рядом с джокерами
+function renderTags(){
+  const el = $('tagsRow');
+  if(!el) return;
+  const queue = G.tags || [];
+  const when = {blindStart:'в начале блайнда', bossWin:'после босса'};
+  let html = queue.map(id => {
+    const t = TAGS[id];
+    return `<div class="tagChip" onclick="msg('${t.name}: ${t.desc}')">` +
+           `<b>${t.name}</b><small>${when[t.trigger] || ''}</small></div>`;
+  }).join('');
+  if(G.pendingDouble){
+    html += `<div class="tagChip dbl" onclick="msg('Удвоитель: следующий полученный тег сработает дважды')">` +
+            `<b>×2</b><small>следующий тег дважды</small></div>`;
+  }
+  el.innerHTML = html;
 }
 /* ---------- Состояние ---------- */
 const G = {best:0, sound:true, jokers:[], jokerEds:[], hand:[], deck:[], selected:new Set(),
@@ -1213,7 +1236,7 @@ function render(){
   $('soundBtn').textContent = G.sound ? '🔊' : '🔇';
   $('homeSound').textContent = G.sound ? '🔊 Звук' : '🔇 Звук';
   $('bossInfo').textContent = G.boss ? bossLabel() : '';
-
+  renderTags();
   $('jokers').innerHTML = G.jokers.map((id,i)=>{
     if(G.jokersHidden) return `<div class="joker back" data-i="${i}"><b>?</b></div>`;
     const j = JOKER_BY_ID[id];
