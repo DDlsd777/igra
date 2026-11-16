@@ -582,7 +582,60 @@ function reqProgress(id){
 // Пока значения из облака не прочитаны, писать их обратно нельзя
 const loaded = {stats:false, best:false};
 function saveStats(){ if(loaded.stats) store.set('stats', STATS); }
+/* ---------- Теги (награды за пропуск блайнда) ---------- */
+// trigger: 'now'        — срабатывает сразу при получении
+//          'blindStart' — срабатывает в начале следующего блайнда, затем удаляется
+//          'bossWin'    — срабатывает после победы над боссом, затем удаляется
+const TAGS = {
+  economy:    {name:'Экономика', trigger:'now',
+               desc:'Удваивает деньги (бонус не больше $40)',
+               apply(){ const gain = Math.min(G.money, 40); G.money += gain; return `+$${gain}`; }},
+  speed:      {name:'Скорость', trigger:'now',
+               desc:'+$5 за каждый пропущенный блайнд в забеге',
+               apply(){ const gain = 5 * (G.skips || 0); G.money += gain; return `+$${gain}`; }},
+  handy:      {name:'Удобный', trigger:'now',
+               desc:'+$1 за каждую сыгранную руку в забеге',
+               apply(){ const n = Object.values(G.handCounts).reduce((a, b) => a + b, 0); G.money += n; return `+$${n}`; }},
+  double:     {name:'Удвоитель', trigger:'now',
+               desc:'Следующий полученный тег сработает дважды',
+               apply(){ G.pendingDouble = true; return 'следующий тег удвоится'; }},
+  investment: {name:'Инвестиция', trigger:'bossWin',
+               desc:'+$25 после победы над боссом',
+               apply(){ G.money += 25; return '+$25'; }},
+  juggle:     {name:'Жонглёр', trigger:'blindStart',
+               desc:'+3 к размеру руки в следующем блайнде',
+               apply(){ G.handSize += 3; return 'размер руки +3'; }},
+  topup:      {name:'Запас', trigger:'blindStart',
+               desc:'+1 рука и +1 сброс в следующем блайнде',
+               apply(){ G.handsLeft += 1; G.discardsLeft += 1; return '+1 рука, +1 сброс'; }},
+};
 
+const TAG_IDS = Object.keys(TAGS);
+const randomTag = () => TAG_IDS[Math.floor(Math.random() * TAG_IDS.length)];
+
+// Выдаёт тег: «сейчас» — сразу применяет, остальные — кладёт в очередь G.tags
+function gainTag(id){
+  const times = G.pendingDouble ? 2 : 1;
+  G.pendingDouble = false;
+  const got = [];
+  for(let i = 0; i < times; i++){
+    const t = TAGS[id];
+    if(t.trigger === 'now') got.push(`${t.name}: ${t.apply()}`);
+    else { G.tags = G.tags || []; G.tags.push(id); got.push(`${t.name} (сработает позже)`); }
+  }
+  return got.join('; ');
+}
+
+// Срабатывает все теги с нужным trigger и убирает их из очереди
+function applyTags(trigger){
+  const notes = [];
+  G.tags = (G.tags || []).filter(id => {
+    if(TAGS[id].trigger !== trigger) return true;   // оставить в очереди
+    notes.push(`${TAGS[id].name}: ${TAGS[id].apply()}`);
+    return false;
+  });
+  return notes;
+}
 /* ---------- Состояние ---------- */
 const G = {best:0, sound:true, jokers:[], jokerEds:[], hand:[], deck:[], selected:new Set(),
            pendingMult:0, pendingChips:0, wins:0, cleared:0, handsPlayed:0, runId:null,
@@ -1032,14 +1085,17 @@ function startBlind(){
   G.jokersHidden = G.boss==='carousel';
   G.animating = false; G.inShop = false;
   STATS.bestAnte = Math.max(STATS.bestAnte, G.ante); saveStats();
-  // Подвал: карты кладутся рубашкой вверх уже при раздаче, до сортировки,
+    // Теги «в начале блайнда» применяются после того, как руки и сбросы уже выставлены
+  const startNotes = applyTags('blindStart');
+    // Подвал: карты кладутся рубашкой вверх уже при раздаче, до сортировки,
   // иначе порядок закрытых карт выдал бы их достоинство
   firstDeal = true; draw(); firstDeal = false;
   if(G.boss==='carousel') shuffleJokers();
   if(G.boss==='locust') rollLocust();
   render(); save();
   const bossText = G.boss ? ` ⚠ ${bossLabel()}` : '';
-  msg(`${b.name}. Цель: ${G.target}.${bossText}`);
+    const tagText = startNotes.length ? ` Теги: ${startNotes.join(', ')}.` : '';
+  msg(`${b.name}. Цель: ${G.target}.${bossText}${tagText}`);
 }
 
 function bossLabel(){
@@ -1067,9 +1123,10 @@ function skipBlind(){
   if(G.animating) return;
   const b = BLINDS[G.blindIdx];
   if(!b.skippable) return msg('Босса нельзя пропустить');
-  G.money += 2;
+  G.skips = (G.skips || 0) + 1;
+  const info = gainTag(randomTag());
   sfx('buy');
-  msg(`Пропущен ${b.name}. +$2`);
+  msg(`Пропущен ${b.name}. Тег: ${info}`);
   nextBlind();
 }
 
@@ -1086,6 +1143,7 @@ function winBlind(){
   reward += 2 * (G.goldPlayed || 0);
   G.goldPlayed = 0;
   reward += Math.min(5, Math.floor(G.money / 5));
+  const bossNotes = b.boss ? applyTags('bossWin') : [];
   G.money += reward; G.wins++; G.cleared++;
   G.best = Math.max(G.best, G.cleared);
   if(loaded.best) store.set('best', G.best);
