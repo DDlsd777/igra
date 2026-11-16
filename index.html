@@ -664,11 +664,31 @@ const TAGS = {
   topup:      {name:'Запас', trigger:'blindStart',
                desc:'+1 рука и +1 сброс в следующем блайнде',
                apply(){ G.handsLeft += 1; G.discardsLeft += 1; return '+1 рука, +1 сброс'; }},
+                   apply(){ G.handsLeft += 1; G.discardsLeft += 1; return '+1 рука, +1 сброс'; }},
+  uncommon:   {name:'Необычный тег', trigger:'shop',
+               desc:'В следующем магазине бесплатный необычный джокер',
+               apply(){ return addFreeJoker('uncommon'); }},
+  rare:       {name:'Редкий тег', trigger:'shop',
+               desc:'В следующем магазине бесплатный редкий джокер',
+               apply(){ return addFreeJoker('rare'); }},
 };
 
 const TAG_IDS = Object.keys(TAGS);
 const randomTag = () => TAG_IDS[Math.floor(Math.random() * TAG_IDS.length)];
+// Выбирает случайного джокера заданной редкости, которого ещё нет у игрока и в магазине
+function pickJokerOfRarity(rarity, exclude){
+  const pool = JOKERS.filter(j => j.rarity === rarity && !exclude.includes(j.id));
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+}
 
+// Кладёт бесплатного джокера в начало магазина
+function addFreeJoker(rarity){
+  const taken = [...G.jokers, ...G.shopStock.filter(s => s.kind === 'joker').map(s => s.id)];
+  const j = pickJokerOfRarity(rarity, taken);
+  if(!j) return 'подходящих джокеров нет';
+  G.shopStock.unshift({kind:'joker', id:j.id, ed:null, free:true});
+  return `бесплатный джокер «${j.name}»`;
+}
 // Выдаёт тег: «сейчас» — сразу применяет, остальные — кладёт в очередь G.tags
 function gainTag(id){
   const times = G.pendingDouble ? 2 : 1;
@@ -697,7 +717,7 @@ function renderTags(){
   const el = $('tagsRow');
   if(!el) return;
   const queue = G.tags || [];
-  const when = {blindStart:'в начале блайнда', bossWin:'после босса'};
+    const when = {blindStart:'в начале блайнда', bossWin:'после босса', shop:'в следующем магазине'};
   let html = queue.map(id => {
     const t = TAGS[id];
     return `<div class="tagChip" onclick="msg('${t.name}: ${t.desc}')">` +
@@ -1216,7 +1236,7 @@ function showSkipInfo(){
   if(G.animating) return;
   const b = BLINDS[G.blindIdx];
   if(!b.skippable) return msg('Босса нельзя пропустить');if(stakeOf().noSkip) return msg('На этой ставке блайнды нельзя пропускать');
-  const when = {now:'сразу', blindStart:'в начале следующего блайнда', bossWin:'после победы над боссом'};
+    const when = {now:'сразу', blindStart:'в начале следующего блайнда', bossWin:'после победы над боссом', shop:'в следующем магазине'};
   $('skipTitle').textContent = `Пропуск: ${b.name}`;
   $('skipList').innerHTML = TAG_IDS.map(id => {
     const t = TAGS[id];
@@ -1245,8 +1265,9 @@ function winBlind(){
   // Последний босс последнего антэ: забег выигран, магазин и следующее антэ не нужны
   if(G.ante >= MAX_ANTE && G.blindIdx === 2){ render(); return winRun(); }
   G.shopStock = makeShopStock();
+  const shopNotes = applyTags('shop');   // добавляем бесплатных джокеров в магазин
   G.rerolled = false;
-    shopMsg('');
+    shopMsg(shopNotes.length ? 'Тег: ' + shopNotes.join(', ') : '');
   advanceBlind();        // сначала переходим к следующему блайнду
   G.inShop = true;
   save();                // и только потом сохраняем: в сохранении уже «магазин»
@@ -1839,7 +1860,7 @@ function openShop(){
       const edTxt = it.ed ? ` <small>[${EDITION_NAME[it.ed]}]</small>` : '';
       const edDesc = it.ed ? `<br><small>${EDITION_NAME[it.ed]}: ${EDITION_DESC[it.ed]}</small>` : '';
       return `<div class="item"><span><b>${j.name}</b>${rar}${edTxt}<br><small>${j.desc}</small>${edDesc}</span>
-        <button onclick="buy(${idx})">$${j.cost}</button></div>`;
+                <button onclick="buy(${idx})">${it.free ? 'Бесплатно' : '$' + j.cost}</button></div>`;
     }
     const c = CONS_BY_ID[it.id];
     return `<div class="item"><span><b>${c.name}</b><br><small>${c.desc}</small></span>
@@ -1862,7 +1883,7 @@ function reroll(){
   if(G.money < COST) return shopMsg(`Не хватает денег для обновления: нужно $${COST}, у вас $${G.money}`);
   G.money -= COST;
   G.rerolled = true;
-  G.shopStock = makeShopStock();
+  G.shopStock = [...G.shopStock.filter(s => s.free), ...makeShopStock()];
   shopMsg('Магазин обновлён');
   sfx('buy');
   save(); openShop(); render();
@@ -1872,11 +1893,12 @@ function buy(idx){
   const it = G.shopStock[idx];
   if(!it) return;
 
-  if(it.kind === 'joker'){
+    if(it.kind === 'joker'){
     const j = JOKER_BY_ID[it.id];
-    if(G.money < j.cost) return shopMsg(`Не хватает денег: нужно $${j.cost}, у вас $${G.money}`);
+    const price = it.free ? 0 : j.cost;
+    if(G.money < price) return shopMsg(`Не хватает денег: нужно $${price}, у вас $${G.money}`);
     if(G.jokers.length >= 5) return shopMsg('Слоты джокеров заполнены. Продайте один из своих джокеров выше');
-    G.money -= j.cost; G.jokers.push(it.id); G.jokerEds.push(it.ed || null);
+    G.money -= price; G.jokers.push(it.id); G.jokerEds.push(it.ed || null);
     STATS.maxJokers = Math.max(STATS.maxJokers, G.jokers.length);
     if(j.rarity==='rare') STATS.rareBought++;
     saveStats();
