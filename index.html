@@ -554,9 +554,7 @@ const CONSUMABLES = [
      a.rank = b.rank; a.suit = b.suit; a.enh = b.enh || null; a.val = b.val;
      return b.enh==='stone' ? 'Левая карта стала каменной' : `Левая карта стала ${b.rank}${b.suit}`;
    }},
-  {id:'tarot:coin', type:'tarot', needs:0, cost:3,
-   name:'Монета', desc:'Сразу +$5',
-   fn:()=>{ G.money += 5; return '+$5'; }},
+
 ];
 const CONS_BY_ID = Object.fromEntries(CONSUMABLES.map(c=>[c.id,c]));
 
@@ -1828,7 +1826,7 @@ $('continueBtn').onclick = ()=>{
   Object.assign(G, savedRun);  G.masterDeck = savedRun.masterDeck ? unpackDeck(savedRun.masterDeck) : newMasterDeck();
   G.jokerEds = savedRun.jokerEds || savedRun.jokers.map(()=>null);
   G.handLevels = savedRun.handLevels || defaultLevels();
-  G.consumables = savedRun.consumables || [];
+    G.consumables = (savedRun.consumables || []).filter(id=>CONS_BY_ID[id]);   // убираем удалённые карты (например, Монету)
     G.goldPlayed = 0;
   G.inShop = !!savedRun.inShop;
   G.shopStock = G.inShop ? (savedRun.shopStock || []) : [];
@@ -1910,11 +1908,15 @@ $('closeBoard').onclick = ()=>$('board').classList.remove('show');
 /* ---------- Админ-панель ---------- */
 const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-async function checkAdmin(){
-  try{
-    const r = await apiPost('/admin/check', {});
-    if(r.is_admin){ $('adminBtn').style.display = ''; $('homeAdmin').style.display = 'block'; }
-  }catch(e){}
+async function checkAdmin(tries = 3){
+  for(let t = 0; t < tries; t++){
+    try{
+      // Render может просыпаться до минуты, поэтому таймаут длинный, и есть повторы
+      const r = await apiPost('/admin/check', {}, 70000);
+      if(r.is_admin){ $('adminBtn').style.display = ''; $('homeAdmin').style.display = 'block'; }
+      return;
+    }catch(e){ await new Promise(res=>setTimeout(res, 5000)); }
+  }
 }
 
 async function loadAdmin(){
