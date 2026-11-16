@@ -664,7 +664,6 @@ const TAGS = {
   topup:      {name:'Запас', trigger:'blindStart',
                desc:'+1 рука и +1 сброс в следующем блайнде',
                apply(){ G.handsLeft += 1; G.discardsLeft += 1; return '+1 рука, +1 сброс'; }},
-                   apply(){ G.handsLeft += 1; G.discardsLeft += 1; return '+1 рука, +1 сброс'; }},
   uncommon:   {name:'Необычный тег', trigger:'shop',
                desc:'В следующем магазине бесплатный необычный джокер',
                apply(){ return addFreeJoker('uncommon'); }},
