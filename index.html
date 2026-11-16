@@ -1129,7 +1129,14 @@ function startBlind(){
   render(); save();
   const bossText = G.boss ? ` ⚠ ${bossLabel()}` : '';
     const tagText = startNotes.length ? ` Теги: ${startNotes.join(', ')}.` : '';
-  msg(`${b.name}. Цель: ${G.target}.${bossText}${tagText}`);
+  if(G.skipInfo){
+    // Пришли из пропуска: показываем, что дал пропуск
+    const now = startNotes.length ? `. Сейчас: ${startNotes.join(', ')}` : '';
+    msg(`За пропуск блайнда: ${G.skipInfo}${now}`);
+    G.skipInfo = null;
+  } else {
+    msg(`${b.name}. Цель: ${G.target}.${bossText}${tagText}`);
+  }
 }
 
 function bossLabel(){
@@ -1160,7 +1167,7 @@ function skipBlind(){
   G.skips = (G.skips || 0) + 1;
   const info = gainTag(randomTag());
   sfx('buy');
-  msg(`Пропущен ${b.name}. Тег: ${info}`);
+    G.skipInfo = info;   // запомним, чтобы показать в начале следующего блайнда
   nextBlind();
 }
 // Окно перед пропуском: показывает, какие теги могут выпасть
