@@ -621,7 +621,7 @@ const TAGS = {
                apply(){ G.money += 25; return '+$25'; }},
   juggle:     {name:'Жонглёр', trigger:'blindStart',
                desc:'+3 к размеру руки в следующем блайнде',
-               apply(){ G.handSize += 3; return 'размер руки +3'; }},
+             apply(){ G.handSize = Math.min(G.handSize + 3, 10); return 'размер руки +3'; }},
   topup:      {name:'Запас', trigger:'blindStart',
                desc:'+1 рука и +1 сброс в следующем блайнде',
                apply(){ G.handsLeft += 1; G.discardsLeft += 1; return '+1 рука, +1 сброс'; }},
