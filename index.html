@@ -254,6 +254,8 @@ h2.t{text-align:center;color:var(--gold);margin:0 0 10px}
   <div class="overlay" id="menu">
     <div class="panel">
       <h2 class="t" id="menuTitle">Выбор колоды</h2>
+            <select id="stakeSel" style="width:100%;margin-bottom:4px;padding:8px;font-size:14px"></select>
+      <div id="stakeDesc" style="font-size:12px;opacity:.8;margin-bottom:8px;min-height:16px"></div>
       <div id="deckList"></div>
       <button id="menuBack" class="gray" style="width:100%;margin-top:8px">← В главное меню</button>
     </div>
@@ -431,7 +433,7 @@ const ANTE_BASE = [300, 700, 1500, 3200, 6500, 12000, 20000, 30000];
 const baseTarget = ante => ANTE_BASE[Math.min(ante - 1, ANTE_BASE.length - 1)] * DIFFICULTY;
 const BOSS_MULT = {wall:4, peak:1, titan:6};
 const bossMult = () => (G.boss && BOSS_MULT[G.boss] != null) ? BOSS_MULT[G.boss] : BLINDS[G.blindIdx].mult;
-const blindTarget = () => Math.round(baseTarget(G.ante) * bossMult() / 10) * 10;
+const blindTarget = () => Math.round(baseTarget(G.ante) * bossMult() * stakeOf().target / 10) * 10;
 function roundNo(){ return (G.ante - 1) * 3 + G.blindIdx + 1; }
 
 /* ---------- Редкость и издания джокеров ---------- */
@@ -586,7 +588,44 @@ const DECKS = {
              req:{key:'rareBought', min:3, text:'Купить 3 редких джокера'}},
 };
 
-let STATS = {runs:0, bestAnte:0, maxJokers:0, wins:0, straightFlush:0, rareBought:0};
+/* ---------- Стейки (уровни сложности) ---------- */
+// target — множитель целей, rewardMinus — штраф к награде за блайнд,
+// noSkip — запрет пропуска блайндов
+const STAKES = [
+  {name:'Белый',      target:1.0, rewardMinus:0, noSkip:false, desc:'Базовая сложность'},
+  {name:'Красный',    target:1.1, rewardMinus:0, noSkip:false, desc:'Цели +10%'},
+  {name:'Зелёный',    target:1.2, rewardMinus:1, noSkip:false, desc:'Цели +20%, награда за блайнд −$1'},
+  {name:'Чёрный',     target:1.3, rewardMinus:1, noSkip:false, desc:'Цели +30%, награда за блайнд −$1'},
+  {name:'Синий',      target:1.4, rewardMinus:1, noSkip:false, desc:'Цели +40%, награда за блайнд −$1'},
+  {name:'Фиолетовый', target:1.5, rewardMinus:2, noSkip:false, desc:'Цели +50%, награда за блайнд −$2'},
+  {name:'Оранжевый',  target:1.6, rewardMinus:2, noSkip:true,  desc:'Цели +60%, награда −$2, блайнды нельзя пропускать'},
+  {name:'Золотой',    target:1.8, rewardMinus:3, noSkip:true,  desc:'Цели +80%, награда −$3, блайнды нельзя пропускать'},
+];
+const stakeOf = () => STAKES[G.stake || 0] || STAKES[0];
+
+// Заполняет выпадающий список стейков; закрытые уровни недоступны
+function buildStakes(){
+  const sel = $('stakeSel');
+  const cur = +sel.value || 0;
+  const won = STATS.stakesWon || 0;
+  sel.innerHTML = '';
+  STAKES.forEach((s, k) => {
+    const o = document.createElement('option');
+    o.value = k;
+    o.disabled = k > won;
+    o.textContent = k > won ? `${s.name} (закрыт)` : s.name;
+    sel.appendChild(o);
+  });
+  sel.value = cur <= won ? cur : 0;
+  sel.onchange = showStakeDesc;
+  showStakeDesc();
+}
+function showStakeDesc(){
+  const s = STAKES[+$('stakeSel').value];
+  $('stakeDesc').textContent = s ? s.desc : '';
+}
+
+let STATS = {runs:0, bestAnte:0, maxJokers:0, wins:0, straightFlush:0, rareBought:0, stakesWon:0};
 function isUnlocked(id){
   const r = DECKS[id].req;
   return !r || (STATS[r.key] || 0) >= r.min;
@@ -828,7 +867,8 @@ function save(){
     handCounts:G.handCounts, anteSeen:[...G.anteSeen],
     masterDeck: G.masterDeck ? packDeck(G.masterDeck) : '',
     inShop:!!G.inShop, shopStock:G.inShop ? G.shopStock : [], rerolled:!!G.rerolled,
-    blind:packBlind(),tags:G.tags || [], skips:G.skips || 0, pendingDouble:!!G.pendingDouble,});
+    stake:G.stake || 0,
+    blind:packBlind()});blind:packBlind(),tags:G.tags || [], skips:G.skips || 0, pendingDouble:!!G.pendingDouble,});
 }
 
 // Восстановление блайнда из сохранения (без новой раздачи)
@@ -1163,7 +1203,8 @@ function nextBlind(){
 function skipBlind(){
   if(G.animating) return;
   const b = BLINDS[G.blindIdx];
-  if(!b.skippable) return msg('Босса нельзя пропустить');
+    if(!b.skippable) return msg('Босса нельзя пропустить');
+  if(stakeOf().noSkip) return msg('На этой ставке блайнды нельзя пропускать');
   G.skips = (G.skips || 0) + 1;
   const info = gainTag(randomTag());
   sfx('buy');
@@ -1174,7 +1215,7 @@ function skipBlind(){
 function showSkipInfo(){
   if(G.animating) return;
   const b = BLINDS[G.blindIdx];
-  if(!b.skippable) return msg('Босса нельзя пропустить');
+  if(!b.skippable) return msg('Босса нельзя пропустить');if(stakeOf().noSkip) return msg('На этой ставке блайнды нельзя пропускать');
   const when = {now:'сразу', blindStart:'в начале следующего блайнда', bossWin:'после победы над боссом'};
   $('skipTitle').textContent = `Пропуск: ${b.name}`;
   $('skipList').innerHTML = TAG_IDS.map(id => {
@@ -1187,7 +1228,7 @@ function winBlind(){
   sfx('win');
   G.jokersHidden = false; G.disabledJoker = -1;
   const b = BLINDS[G.blindIdx], d = DECKS[G.deckId];
-  let reward = b.reward + (d.econ || 0);
+  let reward = Math.max(0, b.reward + (d.econ || 0) - stakeOf().rewardMinus);
   const ctx = {money:G.money, handsLeft:G.handsLeft, discardsLeft:G.discardsLeft};
   for(const id of G.jokers){
     const f = JOKER_BY_ID[id].onRoundEnd;
@@ -1224,7 +1265,9 @@ function winRun(){
   sfx('win');
   submitRun();
   clearRun();
-  STATS.wins++; saveStats();
+    STATS.wins++;
+  STATS.stakesWon = Math.max(STATS.stakesWon || 0, (G.stake || 0) + 1);
+  saveStats();
   showMenu('🏆 Все антэ пройдены!');
 }
 
@@ -1885,7 +1928,7 @@ function showHome(){
 function hideHome(){ $('home').classList.remove('show'); }
 
 function buildMenu(){
-  $('deckList').innerHTML = '';
+  $('deckList').innerHTML = '';  buildStakes();
   for(const [id,d] of Object.entries(DECKS)){
     const open = isUnlocked(id);
     const b = document.createElement('button');
@@ -1906,8 +1949,9 @@ function hideMenu(){ $('menu').classList.remove('show'); }
 async function startNew(deckId){
   if(!isUnlocked(deckId)) return;
   Object.assign(G, {
-        tags:[], skips:0, pendingDouble:false,
-      deckId, ante:1, blindIdx:0, money:DECKS[deckId].apply.money||0,
+    tags:[], skips:0, pendingDouble:false,
+    stake: +$('stakeSel').value || 0,
+    deckId, ante:1, blindIdx:0, money:DECKS[deckId].apply.money||0,
     jokers:[], jokerEds:[], wins:0, cleared:0, anteBoss:pickBoss(1), runId:null,
     handCounts:{}, anteSeen:new Set(), usedTypes:[], lockedType:null, boss:null,
     handLevels:defaultLevels(), consumables:[], shopStock:[], goldPlayed:0, rerolled:false,
