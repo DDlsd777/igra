@@ -794,7 +794,7 @@ function save(){
     handCounts:G.handCounts, anteSeen:[...G.anteSeen],
     masterDeck: G.masterDeck ? packDeck(G.masterDeck) : '',
     inShop:!!G.inShop, shopStock:G.inShop ? G.shopStock : [], rerolled:!!G.rerolled,
-    blind:packBlind()});
+    blind:packBlind(),tags:G.tags || [], skips:G.skips || 0, pendingDouble:!!G.pendingDouble,});
 }
 
 // Восстановление блайнда из сохранения (без новой раздачи)
@@ -1853,7 +1853,8 @@ function hideMenu(){ $('menu').classList.remove('show'); }
 async function startNew(deckId){
   if(!isUnlocked(deckId)) return;
   Object.assign(G, {
-    deckId, ante:1, blindIdx:0, money:DECKS[deckId].apply.money||0,
+        tags:[], skips:0, pendingDouble:false,
+      deckId, ante:1, blindIdx:0, money:DECKS[deckId].apply.money||0,
     jokers:[], jokerEds:[], wins:0, cleared:0, anteBoss:pickBoss(1), runId:null,
     handCounts:{}, anteSeen:new Set(), usedTypes:[], lockedType:null, boss:null,
     handLevels:defaultLevels(), consumables:[], shopStock:[], goldPlayed:0, rerolled:false,
