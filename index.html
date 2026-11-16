@@ -868,7 +868,7 @@ function save(){
     masterDeck: G.masterDeck ? packDeck(G.masterDeck) : '',
     inShop:!!G.inShop, shopStock:G.inShop ? G.shopStock : [], rerolled:!!G.rerolled,
     stake:G.stake || 0,
-    blind:packBlind()});blind:packBlind(),tags:G.tags || [], skips:G.skips || 0, pendingDouble:!!G.pendingDouble,});
+    blind:packBlind(), tags:G.tags || [], skips:G.skips || 0, pendingDouble:!!G.pendingDouble});
 }
 
 // Восстановление блайнда из сохранения (без новой раздачи)
