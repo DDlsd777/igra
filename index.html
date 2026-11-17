@@ -716,7 +716,7 @@ function renderTags(){
   const el = $('tagsRow');
   if(!el) return;
   const queue = G.tags || [];
-    const when = {blindStart:'в начале блайнда', bossWin:'после босса', shop:'в следующем магазине'};
+    const when = {blindStart:'в начале следующего блайнда', bossWin:'после босса', shop:'в следующем магазине'};
   let html = queue.map(id => {
     const t = TAGS[id];
     return `<div class="tagChip" onclick="msg('${t.name}: ${t.desc}')">` +
