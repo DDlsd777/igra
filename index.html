@@ -626,7 +626,24 @@ setEffect('j013', ctx => hasHand(ctx.name, 'Две пары') ? {chips:80} : {})
 setEffect('j014', ctx => hasHand(ctx.name, 'Стрит') ? {chips:100} : {}); // Жулик
 setEffect('j015', ctx => hasHand(ctx.name, 'Флеш') ? {chips:80} : {});   // Плут
 setEffect('j016', ctx => ctx.played.length <= 3 ? {mult:20} : {});       // Коротыш
-
+/* ---------- Эффекты джокеров: пакет 2 (№17–40, что работает на текущем движке) ---------- */
+setEffect('j017', () => ({xmult: 5 - G.jokers.length + 1}));                 // Трафарет: ×1 за каждый пустой слот (включая себя)
+setEffect('j022', () => ({chips: 30 * G.discardsLeft}));                     // Знамя: +30 фишек за каждый оставшийся сброс
+setEffect('j023', () => G.discardsLeft === 0 ? {mult: 15} : {});             // Мистическая вершина: +15 множителя при 0 сбросах
+setEffect('j027', () => ({mult: Math.floor(Math.random() * 24)}));           // Опечатка: +0–23 множителя (случайно)
+setEffect('j029', ctx => {                                                    // Кулак: удвоенный ранг самой младшей карты в руке
+  const played = new Set(ctx.played);
+  const held = G.hand.filter(c => !played.has(c) && c.enh !== 'stone');
+  if(!held.length) return {};
+  return {mult: 2 * Math.min(...held.map(c => c.val))};
+});
+setEffect('j031', ctx => ({mult: 8 * ctx.cards.filter(c => ['A','2','3','5','8'].includes(c.rank)).length})); // Фибоначчи
+setEffect('j032', () => ({xmult: 1 + 0.2 * G.masterDeck.filter(c => c.enh === 'steel').length}));          // Стальняк: ×0,2 за каждую стальную карту
+setEffect('j033', ctx => ({chips: 30 * ctx.cards.filter(c => FACES.includes(c.rank)).length}));           // Грозила: +30 фишек за картинки
+setEffect('j034', () => ({mult: 3 * G.jokers.length}));                      // Концептуал: +3 множителя за каждого джокера
+setEffect('j038', () => ({mult: 15}));                                       // Банан-старший: +15 множителя (уничтожение пока не работает)
+setEffect('j039', ctx => ({mult: 4 * ctx.cards.filter(c => ['2','4','6','8','10'].includes(c.rank)).length})); // Чёткий: +4 за чётные
+setEffect('j040', ctx => ({chips: 31 * ctx.cards.filter(c => ['A','3','5','7','9'].includes(c.rank)).length})); // Лихач: +31 фишку за нечётные
 /* ---------- Уровни комбинаций ---------- */
 const LEVEL_BONUS = {chips:10, mult:1};/* ---------- Стеллы (планеты) ---------- */
 // Прирост за каждый уровень комбинации: фишки и множитель
