@@ -596,6 +596,36 @@ const JOKERS = [
   {id:'j150', name:'Винодел', cost:0, rarity:'legendary', desc:'Создаёт негативную копию случайного расходника в конце магазина'},
 ];
 const JOKER_BY_ID = Object.fromEntries(JOKERS.map(j=>[j.id,j]));
+/* ---------- Эффекты джокеров: пакет 1 (№1–16) ---------- */
+// Какие комбинации содержат нужную (по правилам Balatro)
+const CONTAINS = {
+  'Пара':     ['Пара', 'Две пары', 'Сет', 'Фулл-хаус', 'Каре'],
+  'Две пары': ['Две пары', 'Фулл-хаус'],
+  'Сет':      ['Сет', 'Фулл-хаус', 'Каре'],
+  'Стрит':    ['Стрит', 'Стрит-флеш'],
+  'Флеш':     ['Флеш', 'Стрит-флеш'],
+  'Каре':     ['Каре'],
+};
+const hasHand = (name, need) => CONTAINS[need].includes(name);
+const suitCount = (ctx, su) => ctx.cards.filter(c => isSuit(c, su)).length;
+const setEffect = (id, fn) => { JOKER_BY_ID[id].effect = fn; };
+
+setEffect('j001', () => ({mult:4}));                                   // Пахан
+setEffect('j002', ctx => ({mult:3 * suitCount(ctx, '♦')}));           // Жадина
+setEffect('j003', ctx => ({mult:3 * suitCount(ctx, '♥')}));           // Сластёна
+setEffect('j004', ctx => ({mult:3 * suitCount(ctx, '♠')}));           // Злюка
+setEffect('j005', ctx => ({mult:3 * suitCount(ctx, '♣')}));           // Обжора
+setEffect('j006', ctx => hasHand(ctx.name, 'Пара') ? {mult:8} : {});  // Весельчак
+setEffect('j007', ctx => hasHand(ctx.name, 'Сет') ? {mult:12} : {});  // Приколист
+setEffect('j008', ctx => hasHand(ctx.name, 'Две пары') ? {mult:10} : {}); // Псих
+setEffect('j009', ctx => hasHand(ctx.name, 'Стрит') ? {mult:12} : {}); // Чудила
+setEffect('j010', ctx => hasHand(ctx.name, 'Флеш') ? {mult:10} : {}); // Балагур
+setEffect('j011', ctx => hasHand(ctx.name, 'Пара') ? {chips:50} : {});  // Хитрюга
+setEffect('j012', ctx => hasHand(ctx.name, 'Сет') ? {chips:100} : {});  // Проныра
+setEffect('j013', ctx => hasHand(ctx.name, 'Две пары') ? {chips:80} : {}); // Ловкач
+setEffect('j014', ctx => hasHand(ctx.name, 'Стрит') ? {chips:100} : {}); // Жулик
+setEffect('j015', ctx => hasHand(ctx.name, 'Флеш') ? {chips:80} : {});   // Плут
+setEffect('j016', ctx => ctx.played.length <= 3 ? {mult:20} : {});       // Коротыш
 
 /* ---------- Уровни комбинаций ---------- */
 const LEVEL_BONUS = {chips:10, mult:1};/* ---------- Стеллы (планеты) ---------- */
