@@ -542,7 +542,7 @@ const CONSUMABLES = [
    name:'Бонус', desc:'Выбранная карта получит +30 фишек',
    fn:(cards)=>{ cards[0].enh = 'bonus'; return 'Карта получила +30 фишек'; }},
   {id:'tarot:multcard', type:'tarot', needs:1, cost:4,
-   name:'Множитель', desc:'Выбранная карта получит +4 множителя',
+   name:'Усилить: множитель', desc:'Выбранная карта получит +4 множителя',
    fn:(cards)=>{ cards[0].enh = 'mult'; return 'Карта получила +4 множителя'; }},
   // Звезда / Луна / Солнце / Мир: от 1 до 3 выбранных карт меняют масть
   ...[['star','Звезда','♦'],['moon','Луна','♣'],['sun','Солнце','♥'],['world','Мир','♠']].map(([k,n,su])=>({
@@ -594,12 +594,12 @@ const DECKS = {
 const STAKES = [
   {name:'Белый',      target:1.0, rewardMinus:0, noSkip:false, desc:'Базовая сложность'},
   {name:'Красный',    target:1.1, rewardMinus:0, noSkip:false, desc:'Цели +10%'},
-  {name:'Зелёный',    target:1.2, rewardMinus:1, noSkip:false, desc:'Цели +20%, награда за блайнд −$1'},
-  {name:'Чёрный',     target:1.3, rewardMinus:1, noSkip:false, desc:'Цели +30%, награда за блайнд −$1'},
-  {name:'Синий',      target:1.4, rewardMinus:1, noSkip:false, desc:'Цели +40%, награда за блайнд −$1'},
-  {name:'Фиолетовый', target:1.5, rewardMinus:2, noSkip:false, desc:'Цели +50%, награда за блайнд −$2'},
-  {name:'Оранжевый',  target:1.6, rewardMinus:2, noSkip:true,  desc:'Цели +60%, награда −$2, блайнды нельзя пропускать'},
-  {name:'Золотой',    target:1.8, rewardMinus:3, noSkip:true,  desc:'Цели +80%, награда −$3, блайнды нельзя пропускать'},
+  {name:'Зелёный',    target:1.2, rewardMinus:1, noSkip:false, desc:'Цели +20%, награда за блайнд $N'},
+  {name:'Чёрный',     target:1.3, rewardMinus:1, noSkip:false, desc:'Цели +30%, награда за блайнд $N'},
+  {name:'Синий',      target:1.4, rewardMinus:1, noSkip:false, desc:'Цели +40%, награда за блайнд $N'},
+  {name:'Фиолетовый', target:1.5, rewardMinus:2, noSkip:false, desc:'Цели +50%, награда за блайнд $N'},
+  {name:'Оранжевый',  target:1.6, rewardMinus:2, noSkip:true,  desc:'Цели +60%, награда $N, блайнды нельзя пропускать'},
+  {name:'Золотой',    target:1.8, rewardMinus:3, noSkip:true,  desc:'Цели +80%, награда $N, блайнды нельзя пропускать'},
 ];
 const stakeOf = () => STAKES[G.stake || 0] || STAKES[0];
 
@@ -696,7 +696,7 @@ function gainTag(id){
   for(let i = 0; i < times; i++){
     const t = TAGS[id];
     if(t.trigger === 'now') got.push(`${t.name}: ${t.apply()}`);
-    else { G.tags = G.tags || []; G.tags.push(id); got.push(`${t.name} (сработает позже)`); }
+    else { G.tags = G.tags || []; G.tags.push(id); got.push(`${t.name} (срабатывает позже)`); }
   }
   return got.join('; ');
 }
