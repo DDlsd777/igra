@@ -496,7 +496,25 @@ const JOKERS = [
 const JOKER_BY_ID = Object.fromEntries(JOKERS.map(j=>[j.id,j]));
 
 /* ---------- Уровни комбинаций ---------- */
-const LEVEL_BONUS = {chips:10, mult:1};
+const LEVEL_BONUS = {chips:10, mult:1};/* ---------- Стеллы (планеты) ---------- */
+// Прирост за каждый уровень комбинации: фишки и множитель
+const PLANETS = {
+  'Старшая карта': {name:'Искра',       chips:10, mult:1},
+  'Пара':          {name:'Блик',        chips:15, mult:1},
+  'Две пары':      {name:'Мерцание',    chips:20, mult:1},
+  'Сет':           {name:'Вспышка',     chips:20, mult:2},
+  'Стрит':         {name:'Сияние',      chips:30, mult:3},
+  'Флеш':          {name:'Сполох',      chips:15, mult:2},
+  'Фулл-хаус':     {name:'Зарница',     chips:25, mult:2},
+  'Каре':          {name:'Пламя',       chips:30, mult:3},
+  'Стрит-флеш':    {name:'Сверхновая',  chips:40, mult:4},
+};
+// Суммарный прирост комбинации на уровне lvl (уровень 1 — без бонуса)
+function levelBonus(name, lvl){
+  const p = PLANETS[name] || {chips:LEVEL_BONUS.chips, mult:LEVEL_BONUS.mult};
+  const n = Math.max(0, lvl - 1);
+  return {chips: p.chips * n, mult: p.mult * n};
+}
 function defaultLevels(){
   return Object.fromEntries(Object.keys(HAND_TABLE).map(h=>[h,1]));
 }
@@ -516,7 +534,7 @@ const ENHANCEMENTS = {
 const CONSUMABLES = [
   ...Object.keys(HAND_TABLE).map(h=>({
     id:'planet:'+h, type:'planet', hand:h,
-    name:`Планета «${h}»`, desc:`Уровень «${h}» +1`, cost:3,
+        name:`Стелла «${PLANETS[h].name}»`, desc:`${h}: +${PLANETS[h].chips} фишек и +${PLANETS[h].mult} множителя за уровень`, cost:3,
   })),
   {id:'tarot:strength', type:'tarot', needs:1, cost:4,
    name:'Сила', desc:'Ранг 1 выбранной карты +1',
@@ -1047,8 +1065,9 @@ function scoreSteps(cards){
   const name = evalHand(cards), base = baseOf(name);
   const sc = scoringSet(cards, name);
   const lvl = (G.handLevels?.[name] || 1) - 1;
-  let chips = base.chips + lvl*LEVEL_BONUS.chips + G.pendingChips;
-  let mult  = base.mult  + lvl*LEVEL_BONUS.mult  + G.pendingMult;
+  const lb = levelBonus(name, lvl + 1);
+  let chips = base.chips + lb.chips + G.pendingChips;
+  let mult  = base.mult  + lb.mult  + G.pendingMult;
   const steps = [{t:'base', chips, mult}];
 
   cards.forEach((c,i)=>{
@@ -1383,8 +1402,9 @@ function updateCurrentHand(){
   const name = evalHand(sel);
   const lvl = G.handLevels?.[name] || 1;
   const base = baseOf(name);
-  const chips = base.chips + (lvl - 1) * LEVEL_BONUS.chips;
-  const mult  = base.mult  + (lvl - 1) * LEVEL_BONUS.mult;
+  const lb = levelBonus(name, lvl);
+  const chips = base.chips + lb.chips;
+  const mult  = base.mult  + lb.mult;
   const n = scoringSet(sel, name).size;
   const extra = n < sel.length ? ` · считаются ${n} из ${sel.length}` : '';
   $('curHand').textContent = `Сейчас: ${name}, ур. ${lvl} (${chips} × ${mult})${extra}`;
