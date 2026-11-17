@@ -114,7 +114,7 @@ button.red{background:#e0412f}
 button.gray{background:#7f8c8d}
 button.orange{background:#f39c12}
 select{background:#1e3026;color:#fff;border:1px solid #fff4;border-radius:6px;padding:4px;font-size:12px;max-width:110px}
-
+#tJokerSearch{background:#1e3026;color:#fff;border:1px solid #fff4;border-radius:6px;padding:4px;font-size:12px;width:86px}
 .overlay{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:12px;z-index:5}
 .overlay.show{display:flex}
 #home{z-index:8;background:radial-gradient(ellipse at 50% 30%,#4c6a45,#1c2a1b)}
@@ -316,7 +316,7 @@ h2.t{text-align:center;color:var(--gold);margin:0 0 10px}
           <span><select id="tRank"></select> <select id="tSuit"></select>
           <button onclick="adminAddCard()">Добавить</button></span></div>
         <div class="item"><span>Джокер</span>
-          <span><select id="tJoker"></select> <button onclick="adminAddJoker()">Добавить</button></span></div>
+          <span><input id="tJokerSearch" type="search" placeholder="Поиск…" autocomplete="off" oninput="filterAdminJokers()"> <select id="tJoker"></select> <button onclick="adminAddJoker()">Добавить</button></span></div>
         <div class="item"><span>Расходник</span>
           <span><select id="tCons"></select> <button onclick="adminAddCons()">Добавить</button></span></div>
         <div class="item"><span>Раунд</span>
@@ -2304,11 +2304,20 @@ async function adminClearBoard(boardKey){
   try{ await apiPost('/admin/clear_board', {board_key:boardKey}); }catch(e){}
   loadAdmin();
 }
-
+// Фильтрует список джокеров по имени (без учёта регистра)
+function filterAdminJokers(){
+  const q = $('tJokerSearch').value.trim().toLowerCase();
+  const sel = $('tJoker'), prev = sel.value;
+  const list = JOKERS.filter(j => j.name.toLowerCase().includes(q));
+  sel.innerHTML = list.map(j=>`<option value="${j.id}">${j.name}</option>`).join('');
+  if(list.some(j => j.id === prev)) sel.value = prev;   // не сбрасываем уже выбранного
+  sel.disabled = !list.length;                          // ничего не найдено — не даём добавить
+}
 function fillAdminSelects(){
   $('tRank').innerHTML = RANKS.map(r=>`<option>${r}</option>`).join('');
   $('tSuit').innerHTML = SUITS.map(s=>`<option>${s}</option>`).join('');
-  $('tJoker').innerHTML = JOKERS.map(j=>`<option value="${j.id}">${j.name}</option>`).join('');
+    $('tJokerSearch').value = '';
+  filterAdminJokers();
   $('tCons').innerHTML = CONSUMABLES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   $('tAnte').innerHTML = Array.from({length:MAX_ANTE},(_,i)=>`<option value="${i+1}">Антэ ${i+1}</option>`).join('');
   $('tBlind').innerHTML = BLINDS.map((b,i)=>`<option value="${i}">${b.name}</option>`).join('');
