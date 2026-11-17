@@ -539,7 +539,7 @@ const CONSUMABLES = [
    name:'Золото', desc:'Выбранная карта станет золотой',
    fn:(cards)=>{ cards[0].enh = 'gold'; return 'Карта стала золотой'; }},
   {id:'tarot:bonus', type:'tarot', needs:1, cost:4,
-   name:'Бонус', desc:'Выбранная карта получит +30 фишек',
+   name:'Усилить: бонус', desc:'Выбранная карта получит +30 фишек',
    fn:(cards)=>{ cards[0].enh = 'bonus'; return 'Карта получила +30 фишек'; }},
   {id:'tarot:multcard', type:'tarot', needs:1, cost:4,
    name:'Усилить: множитель', desc:'Выбранная карта получит +4 множителя',
