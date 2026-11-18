@@ -644,7 +644,13 @@ setEffect('j034', () => ({mult: 3 * G.jokers.length}));                      // 
 setEffect('j038', () => ({mult: 15}));                                       // Банан-старший: +15 множителя (уничтожение пока не работает)
 setEffect('j039', ctx => ({mult: 4 * ctx.cards.filter(c => ['2','4','6','8','10'].includes(c.rank)).length})); // Чёткий: +4 за чётные
 setEffect('j040', ctx => ({chips: 31 * ctx.cards.filter(c => ['A','3','5','7','9'].includes(c.rank)).length})); // Лихач: +31 фишку за нечётные
-/* ---------- Уровни комбинаций ---------- */
+/* ---------- Повтор карт: пакет 1 ---------- */
+const setRetrigger = (id, fn) => { JOKER_BY_ID[id].retrigger = fn; };
+setRetrigger('j036', (ctx, card) => ['2','3','4','5'].includes(card.rank) ? 1 : 0); // Хакер: 2, 3, 4, 5 повторяются один раз
+setRetrigger('j109', (ctx, card) => FACES.includes(card.rank) ? 1 : 0);           // №109: картинки повторяются один раз
+setRetrigger('j115', (ctx, card) => card === ctx.cards[0] ? 2 : 0);              // Висяк: первая карта повторяется дважды
+setRetrigger('j028', (ctx, card) => ctx.handsLeft === 1 ? 1 : 0);                 // Закат: на последней руке раунда все карты повторяются
+    /* ---------- Уровни комбинаций ---------- */
 const LEVEL_BONUS = {chips:10, mult:1};/* ---------- Стеллы (планеты) ---------- */
 // Прирост за каждый уровень комбинации: фишки и множитель
 const PLANETS = {
@@ -1219,17 +1225,21 @@ function scoreSteps(cards){
   let mult  = base.mult  + lb.mult  + G.pendingMult;
   const steps = [{t:'base', chips, mult}];
 
+    const ctxR = {cards:cards.filter(c=>sc.has(c) && c.enh!=='stone'), played:cards, name, handsPlayed:G.handsPlayed, wins:G.wins, handsLeft:G.handsLeft};
   cards.forEach((c,i)=>{
-    let dc = 0, dm = 0, dx = 1;
     const counted = sc.has(c);
-    if(counted && !isDebuffed(c)){
-      dc += (c.enh==='stone' ? 50 : c.val);
-      if(c.enh==='bonus') dc += 30;
-      if(c.enh==='mult')  dm += 4;
-      if(c.enh==='glass') dx = 2;
+    const reps = counted ? 1 + retriggerCount(ctxR, c, i) : 1;
+    for(let r=0; r<reps; r++){
+      let dc = 0, dm = 0, dx = 1;
+      if(counted && !isDebuffed(c)){
+        dc += (c.enh==='stone' ? 50 : c.val);
+        if(c.enh==='bonus') dc += 30;
+        if(c.enh==='mult')  dm += 4;
+        if(c.enh==='glass') dx = 2;
+      }
+      chips += dc; mult = (mult + dm) * dx;
+      steps.push({t:'card', i, dc, dm, dx, chips, mult, kick:!counted, rep:r>0});
     }
-    chips += dc; mult = (mult + dm) * dx;
-    steps.push({t:'card', i, dc, dm, dx, chips, mult, kick:!counted});
   });
 
   // Стальные карты, оставшиеся в руке: ×1.5 каждая (после сыгранных карт, до джокеров)
@@ -1258,6 +1268,16 @@ function scoreSteps(cards){
 }
 
 function scoreHand(cards){
+    // Сколько дополнительных повторов даёт карта (сумма по всем джокерам с retrigger)
+function retriggerCount(ctx, card, idx){
+  let n = 0;
+  G.jokers.forEach((id, i) => {
+    if(G.boss==='locust' && i===G.disabledJoker) return;
+    const fn = JOKER_BY_ID[id].retrigger;
+    if(fn) n += fn(ctx, card, idx) || 0;
+  });
+  return n;
+}
   const s = scoreSteps(cards);
   return {name:s.name, steps:s.steps, chips:s.chips, mult:s.mult, scoring:s.scoring, total:Math.floor(s.chips*s.mult)};
 }
