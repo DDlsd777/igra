@@ -2552,6 +2552,7 @@ function fillAdminSelects(){
 
 // Поиск джокеров в админке: по названию, по id (j025) или по номеру (25)
 function filterAdminJokers(){
+      if(!$('tJokerSearch') || !$('tJoker')) return;
   const q = ($('tJokerSearch').value || '').trim().toLowerCase();
   const sel = $('tJoker');
   const prev = sel.value;
