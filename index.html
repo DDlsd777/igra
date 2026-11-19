@@ -627,7 +627,7 @@ setEffect('j014', ctx => hasHand(ctx.name, 'Стрит') ? {chips:100} : {}); //
 setEffect('j015', ctx => hasHand(ctx.name, 'Флеш') ? {chips:80} : {});   // Плут
 setEffect('j016', ctx => ctx.played.length <= 3 ? {mult:20} : {});       // Коротыш
 /* ---------- Эффекты джокеров: пакет 2 (№17–40, что работает на текущем движке) ---------- */
-setEffect('j017', () => ({xmult: 5 - G.jokers.length + 1}));                 // Трафарет: ×1 за каждый пустой слот (включая себя)
+setEffect('j017', () => ({xmult: 1 + 0.5 * Math.max(0, 5 - G.jokers.length)}));   // Шаблонщик: ×0,5 за каждый пустой слот (кроме себя)  // Трафарет: ×1 за каждый пустой слот (включая себя)
 setEffect('j022', () => ({chips: 30 * G.discardsLeft}));                     // Знамя: +30 фишек за каждый оставшийся сброс
 setEffect('j023', () => G.discardsLeft === 0 ? {mult: 15} : {});             // Мистическая вершина: +15 множителя при 0 сбросах
 setEffect('j027', () => ({mult: Math.floor(Math.random() * 24)}));           // Опечатка: +0–23 множителя (случайно)
@@ -638,7 +638,7 @@ setEffect('j029', ctx => {                                                    //
   return {mult: 2 * Math.min(...held.map(c => c.val))};
 });
 setEffect('j031', ctx => ({mult: 8 * ctx.cards.filter(c => ['A','2','3','5','8'].includes(c.rank)).length})); // Фибоначчи
-setEffect('j032', () => ({xmult: 1 + 0.2 * G.masterDeck.filter(c => c.enh === 'steel').length}));          // Стальняк: ×0,2 за каждую стальную карту
+setEffect('j032', () => ({xmult: Math.min(3, 1 + 0.1 * G.masterDeck.filter(c => c.enh === 'steel').length)}));   // Стальняк: ×0,1 за стальную карту, не больше ×3          // Стальняк: ×0,2 за каждую стальную карту
 setEffect('j033', ctx => ({chips: 30 * ctx.cards.filter(c => FACES.includes(c.rank)).length}));           // Грозила: +30 фишек за картинки
 setEffect('j034', () => ({mult: 3 * G.jokers.length}));                      // Концептуал: +3 множителя за каждого джокера
 setEffect('j038', () => ({mult: 15}));                                       // Банан-старший: +15 множителя (уничтожение пока не работает)
