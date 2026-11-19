@@ -522,7 +522,7 @@ const JOKERS = [
   {id:'j076', name:'Златарь', cost:7, rarity:'uncommon', desc:'Сыгранные картинки становятся золотыми'},
   {id:'j077', name:'Рестлер', cost:5, rarity:'uncommon', desc:'Продажа отключает текущего босса'},
   {id:'j078', name:'Фотка', cost:5, rarity:'common', desc:'Первая сыгранная картинка даёт ×2 множителя'},
-  {id:'j079', name:'Халява', cost:6, rarity:'uncommon', desc:'+$1 к цене всех джокеров и расходников в конце раунда'},
+  {id:'j079', name:'Халява', cost:6, rarity:'uncommon', desc:'В конце раунда +$1 к цене продажи всех джокеров (накапливается)'},
   {id:'j080', name:'Фасолька', cost:6, rarity:'uncommon', desc:'+5 к размеру руки, уменьшается на 1 каждый раунд'},
   {id:'j081', name:'Прореха', cost:6, rarity:'uncommon', desc:'+4 множителя за каждую карту меньше стартового размера колоды'},
   {id:'j082', name:'Стоянка', cost:6, rarity:'common', desc:'Каждая картинка в руке имеет шанс 1 к 2 дать $1'},
@@ -548,7 +548,7 @@ const JOKERS = [
   {id:'j102', name:'Шипучка', cost:6, rarity:'uncommon', desc:'Повторяет все сыгранные карты в следующих 10 руках'},
   {id:'j103', name:'Хата', cost:6, rarity:'uncommon', desc:'+3 фишки за каждую сброшенную карту выбранной масти (масть меняется)'},
   {id:'j104', name:'Лыба', cost:4, rarity:'common', desc:'Картинки дают +5 множителя'},
-  {id:'j105', name:'Очаг', cost:9, rarity:'rare', desc:'×0,25 множителя за каждую проданную карту, сбрасывается после победы над боссом'},
+  {id:'j105', name:'Очаг', cost:9, rarity:'rare', desc:'×0,25 множителя за каждого проданного джокера, обнуляется после победы над боссом'},
   {id:'j106', name:'Золотая жила', cost:5, rarity:'common', desc:'Сыгранные золотые карты дают $4'},
   {id:'j107', name:'Костян', cost:5, rarity:'uncommon', desc:'Предотвращает смерть, если набрано хотя бы 25% нужных фишек; сам уничтожается'},
   {id:'j108', name:'Прыгун', cost:6, rarity:'uncommon', desc:'×3 множителя на последней руке раунда'},
@@ -580,7 +580,7 @@ const JOKERS = [
   {id:'j134', name:'Орден', cost:8, rarity:'rare', desc:'×3 множителя, если есть стрит'},
   {id:'j135', name:'Стая', cost:8, rarity:'rare', desc:'×2 множителя, если есть флеш'},
   {id:'j136', name:'Дублёр', cost:7, rarity:'rare', desc:'+250 фишек, −2 размер руки'},
-  {id:'j137', name:'Хамелеон', cost:8, rarity:'rare', desc:'Через 2 раунда продаёт себя и дублирует случайного джокера'},
+    {id:'j137', name:'Хамелеон', cost:8, rarity:'rare', desc:'Продай его после 2 раундов, чтобы получить копию случайного джокера'},
   {id:'j138', name:'Мозговик', cost:10, rarity:'rare', desc:'Копирует эффект джокера слева'},
   {id:'j139', name:'Тарелка', cost:6, rarity:'uncommon', desc:'$1 в конце раунда за каждую уникальную использованную планету'},
   {id:'j140', name:'Поймать Луну', cost:5, rarity:'common', desc:'Каждая дама в руке даёт +13 множителя'},
@@ -700,8 +700,7 @@ setBlindStart('j021', () => {                             // Церемониа�
   if(right >= G.jokers.length) return;
   const eaten = G.jokers[right];
   const price = JOKER_BY_ID[eaten].cost * 2;
-  G.jokers.splice(right, 1);
-  G.jokerEds.splice(right, 1);
+  removeJoker(right);
   G.jokerState[i] = (G.jokerState[i] || 0) + price;
   msg(`Церемониальный кинжал съел «${JOKER_BY_ID[eaten].name}»: +${price} мн.`);
 });
@@ -973,7 +972,7 @@ function renderTags(){
   el.innerHTML = html;
 }
 /* ---------- Состояние ---------- */
-const G = {best:0, sound:true, jokers:[], jokerEds:[], hand:[], deck:[], selected:new Set(),
+const G = {best:0, sound:true, jokers:[], jokerEds:[], jokerState:[], giftCard:0, soldCount:0, bossOff:false, hand:[], deck:[], selected:new Set(),
            pendingMult:0, pendingChips:0, wins:0, cleared:0, handsPlayed:0, runId:null,
            shopStock:[], goldPlayed:0, rerolled:false, oneCard:false,
            active:false, animating:false,
@@ -1116,7 +1115,7 @@ function packBlind(){
   return {
     t:G.target, s:G.score, h:G.handsLeft, d:G.discardsLeft, p:G.handsPlayed,
     pm:G.pendingMult, pc:G.pendingChips, ut:G.usedTypes, lt:G.lockedType,
-    ib:G.idolBroken, fg:G.fogActive, dj:G.disabledJoker,
+        ib:G.idolBroken, fg:G.fogActive, dj:G.disabledJoker, bo:G.bossOff,
     hand:G.hand.filter(c=>c.m).map(tok).join(','),
     deck:G.deck.filter(c=>c.m).map(tok).join(','),
   };
@@ -1125,7 +1124,8 @@ function packBlind(){
 function save(){
   if(!G.active || !G.deckId) return;
   store.set('run', {runId:G.runId, deckId:G.deckId, ante:G.ante, blindIdx:G.blindIdx,
-    money:G.money, jokers:G.jokers, jokerEds:G.jokerEds, wins:G.wins, cleared:G.cleared,
+        money:G.money, jokers:G.jokers, jokerEds:G.jokerEds, jokerState:G.jokerState,
+    giftCard:G.giftCard || 0, soldCount:G.soldCount || 0, wins:G.wins, cleared:G.cleared,
     anteBoss:G.anteBoss, handLevels:G.handLevels, consumables:G.consumables,
     handCounts:G.handCounts, anteSeen:[...G.anteSeen],
     masterDeck: G.masterDeck ? packDeck(G.masterDeck) : '',
@@ -1137,8 +1137,10 @@ function save(){
 
 // Восстановление блайнда из сохранения (без новой раздачи)
 function restoreBlind(b){
-  const d = DECKS[G.deckId], bl = BLINDS[G.blindIdx];
+    const d = DECKS[G.deckId], bl = BLINDS[G.blindIdx];
   G.boss = bl.boss ? G.anteBoss : null;
+  G.bossOff = !!b.bo;
+  if(G.bossOff) G.boss = null;        // Рестлера уже продали в этом блайнде
   G.noFaces = !!d.noFaces;
   G.handSize = G.boss==='collar' ? 7 : 8;
   const mk = tok => {
@@ -1408,10 +1410,11 @@ function refill(){ if(G.boss==='tide') drawN(3); else draw(); }
 function maxSelect(){ return 5; }
 
 function shuffleJokers(){
-  const js = G.jokers.slice(), es = G.jokerEds.slice();
+  const js = G.jokers.slice(), es = G.jokerEds.slice(), st = G.jokerState.slice();
   const order = shuffle(js.map((_,i)=>i));
-  G.jokers = order.map(i=>js[i]);
-  G.jokerEds = order.map(i=>es[i]);
+  G.jokers    = order.map(i=>js[i]);
+  G.jokerEds  = order.map(i=>es[i]);
+  G.jokerState = order.map(i=>st[i]);
 }
 function rollLocust(){
   G.disabledJoker = G.jokers.length ? Math.floor(Math.random()*G.jokers.length) : -1;
@@ -1437,7 +1440,7 @@ function startBlind(){
   G.discardsLeft = G.boss==='drought' ? 0 : 3 + (d.apply.discards || 0);
   G.score = 0; G.handsPlayed = 0; G.pendingMult = 0; G.pendingChips = 0;
   G.usedTypes = []; G.lockedType = null; G.fogActive = false;
-  G.forced = null; G.idolBroken = false; G.disabledJoker = -1;
+  G.forced = null; G.idolBroken = false; G.disabledJoker = -1; G.bossOff = false;
   G.jokersHidden = G.boss==='carousel';
   G.animating = false; G.inShop = false;
   STATS.bestAnte = Math.max(STATS.bestAnte, G.ante); saveStats();
@@ -1511,15 +1514,16 @@ function winBlind(){
   G.jokersHidden = false; G.disabledJoker = -1;
   const b = BLINDS[G.blindIdx], d = DECKS[G.deckId];
   let reward = Math.max(0, b.reward + (d.econ || 0) - stakeOf().rewardMinus);
-  const ctx = {money:G.money, handsLeft:G.handsLeft, discardsLeft:G.discardsLeft};
-  for(const id of G.jokers){
+    const ctx = {money:G.money, handsLeft:G.handsLeft, discardsLeft:G.discardsLeft};
+  G.jokers.forEach((id, i) => {
     const f = JOKER_BY_ID[id].onRoundEnd;
-    if(f) reward += f(ctx)?.money || 0;
-  }
+    if(f) reward += f({...ctx, i})?.money || 0;      // i нужен Яичку и Хамелеону: это номер их слота
+  });
   reward += 2 * (G.goldPlayed || 0);
   G.goldPlayed = 0;
   reward += Math.min(5, Math.max(0, Math.floor(G.money / 5)));
-  const bossNotes = b.boss ? applyTags('bossWin') : [];
+    const bossNotes = b.boss ? applyTags('bossWin') : [];
+  if(b.boss) G.soldCount = 0;        // Очаг обнуляется после победы над боссом
   G.money += reward; G.wins++; G.cleared++;
   G.best = Math.max(G.best, G.cleared);
   if(loaded.best) store.set('best', G.best);
@@ -1687,8 +1691,8 @@ function renderZoom(){
          <button class="alt" id="zoomLeft" ${i===0?'disabled':''}>←</button>
          <button class="alt" id="zoomRight" ${i===G.jokers.length-1?'disabled':''}>→</button>
        </div>`
-    + ((G.boss==='emerald' && !G.idolBroken && G.active)
-        ? `<div class="moveRow"><button class="red" id="zoomSell">💰 Продать $${Math.floor(j.cost/2)}</button></div>` : '')
+       + ((G.active && !G.animating)
+        ? `<div class="moveRow"><button class="red" id="zoomSell">💰 Продать $${sellPrice(i)}</button></div>` : '')
     + `<div class="zoomHint">Нажмите на фон, чтобы закрыть</div>`;
   if($('zoomSell')) $('zoomSell').onclick = (e)=>{ e.stopPropagation(); sellInBattle(); };
   $('zoomLeft').onclick = (e)=>{ e.stopPropagation(); moveJoker(-1); };
@@ -1704,14 +1708,21 @@ function sellInBattle(){
   G.idolBroken = true;
   $('jokerZoom').classList.remove('show');
   sfx('buy'); save(); render();
-  msg(`Продан ${j.name} за $${price}. Идол сломан: карты снова работают`);
+// Продажа джокера прямо во время блайнда (окно джокера)
+function sellInBattle(){
+  const note = doSell(zoomIdx);
+  $('jokerZoom').classList.remove('show');
+  render();
+  if(note) msg(note);
 }
-
 function moveJoker(dir){
   const i = zoomIdx, k = i + dir;
   if(k < 0 || k >= G.jokers.length) return;
   [G.jokers[i], G.jokers[k]] = [G.jokers[k], G.jokers[i]];
   [G.jokerEds[i], G.jokerEds[k]] = [G.jokerEds[k], G.jokerEds[i]];
+    [G.jokers[i], G.jokers[k]] = [G.jokers[k], G.jokers[i]];
+  [G.jokerEds[i], G.jokerEds[k]] = [G.jokerEds[k], G.jokerEds[i]];
+  [G.jokerState[i], G.jokerState[k]] = [G.jokerState[k], G.jokerState[i]];
   zoomIdx = k;
   save(); render(); renderZoom();
 }
@@ -1747,8 +1758,7 @@ function endJokerDrag(e){
     if(r.left + r.width/2 < e.clientX) k++;
   });
   if(k !== i){
-    const [id] = G.jokers.splice(i, 1);   G.jokers.splice(k, 0, id);
-    const [ed] = G.jokerEds.splice(i, 1); G.jokerEds.splice(k, 0, ed);
+       moveJokerSlot(i, k);
     sfx('select'); save(); msg(`Джокер перемещён на позицию №${k+1}`);
   }
   render();
@@ -2067,6 +2077,101 @@ function useConsumable(idx){
   save(); render();
 }
 
+    /* ---------- Продажа джокеров ---------- */
+// jokerState[i] — личная память джокера в слоте i: Яичко копит надбавку, Хамелеон считает раунды.
+// Массивы jokers / jokerEds / jokerState всегда одной длины, менять их можно только этими тремя функциями.
+function addJoker(id, ed){
+  G.jokers.push(id);
+  G.jokerEds.push(ed || null);
+  G.jokerState.push(0);
+}
+function removeJoker(i){
+  G.jokers.splice(i, 1);
+  G.jokerEds.splice(i, 1);
+  G.jokerState.splice(i, 1);
+}
+function moveJokerSlot(from, to){
+  const id = G.jokers.splice(from, 1)[0];
+  const ed = G.jokerEds.splice(from, 1)[0];
+  const st = G.jokerState.splice(from, 1)[0];
+  G.jokers.splice(to, 0, id);
+  G.jokerEds.splice(to, 0, ed);
+  G.jokerState.splice(to, 0, st);
+}
+
+// Цена продажи: половина цены покупки (но не меньше $1) + личная надбавка джокера + Халява
+function sellPrice(i){
+  const j = JOKER_BY_ID[G.jokers[i]];
+  if(!j) return 0;
+  const base = Math.max(1, Math.floor(j.cost / 2));
+  const own = j.sellBonus ? (j.sellBonus(i) || 0) : 0;
+  return base + own + (G.giftCard || 0);
+}
+const setSellBonus = (id, fn) => { JOKER_BY_ID[id].sellBonus = fn; };
+const setSell      = (id, fn) => { JOKER_BY_ID[id].onSell = fn; };
+
+// Единственная точка продажи: и для магазина, и для продажи во время блайнда.
+// Возвращает текст для сообщения или null, если продать нельзя.
+function doSell(i){
+  const id = G.jokers[i];
+  const j = JOKER_BY_ID[id];
+  if(!j || G.animating) return null;
+  const price = sellPrice(i);
+  const state = G.jokerState[i] || 0;      // снимаем память до удаления слота
+  removeJoker(i);
+  G.money += price;
+  G.soldCount = (G.soldCount || 0) + 1;    // счётчик для Очага
+  if(G.disabledJoker >= G.jokers.length) G.disabledJoker = -1;   // Саранча не должна смотреть в пустой слот
+  const notes = [];
+  if(G.boss === 'emerald' && !G.idolBroken){
+    G.idolBroken = true;
+    notes.push('идол сломан, карты снова работают');
+  }
+  if(j.onSell){
+    const n = j.onSell({i, state, price});
+    if(n) notes.push(n);
+  }
+  sfx('buy');
+  save();
+  return `Продан ${j.name} за $${price}` + (notes.length ? '. ' + notes.join('; ') : '');
+}
+
+/* --- Шесть джокеров, которые живут на продаже --- */
+
+// Яичко: в конце каждого раунда +$3 к своей цене продажи
+setRoundEnd('j046', ctx => { G.jokerState[ctx.i] = (G.jokerState[ctx.i] || 0) + 3; return {}; });
+setSellBonus('j046', i => G.jokerState[i] || 0);
+
+// Халява: в конце каждого раунда +$1 к цене продажи всех джокеров (накапливается)
+setRoundEnd('j079', () => { G.giftCard = (G.giftCard || 0) + 1; return {}; });
+
+// Рестлер: продажа отключает эффект текущего босса до конца блайнда
+setSell('j077', () => {
+  if(!G.boss) return 'но босса рядом нет';
+  const name = BOSSES[G.boss].name;
+  G.boss = null;
+  G.bossOff = true;
+  G.jokersHidden = false;
+  G.disabledJoker = -1;
+  return `${name} обезврежен`;
+});
+
+// Очаг: ×0,25 множителя за каждого проданного джокера, обнуляется после победы над боссом
+setEffect('j105', () => ({xmult: 1 + 0.25 * (G.soldCount || 0)}));
+
+// Хамелеон: пролежав 2 раунда, при продаже оставляет копию случайного джокера
+setRoundEnd('j137', ctx => { G.jokerState[ctx.i] = (G.jokerState[ctx.i] || 0) + 1; return {}; });
+setSell('j137', ({state}) => {
+  if(state < 2) return `он ещё не созрел (${state}/2 раунда)`;
+  if(!G.jokers.length) return 'копировать некого';
+  const k = Math.floor(Math.random() * G.jokers.length);
+  const id = G.jokers[k];
+  addJoker(id, G.jokerEds[k]);
+  return `создана копия «${JOKER_BY_ID[id].name}»`;
+});
+
+// Пузырик: продажа даёт тег «Удвоитель» — следующий полученный тег сработает дважды
+setSell('j094', () => { G.pendingDouble = true; return 'получен тег «Удвоитель»'; });
 /* ---------- Магазин ---------- */
 function rollRarity(){
   let r = Math.random() * 100;
@@ -2117,7 +2222,7 @@ function openShop(){
     const ed = G.jokerEds[i];
     const edTxt = ed ? ` <small>[${EDITION_NAME[ed]}]</small>` : '';
     return `<div class="item"><span><b>${j.name}</b>${edTxt} (в слоте)<br><small>${j.desc}</small></span>
-      <button class="red" onclick="sellJoker(${i})">продать $${Math.floor(j.cost/2)}</button></div>`;
+            <button class="red" onclick="sellJoker(${i})">продать $${sellPrice(i)}</button></div>`;
   }).join('');
 
   const items = G.shopStock.map((it, idx) => {
@@ -2166,7 +2271,7 @@ function buy(idx){
     const price = it.free ? 0 : j.cost;
     if(G.money + creditLimit() < price) return shopMsg(`Не хватает денег: нужно $${price}, у вас $${G.money}`);
     if(G.jokers.length >= 5) return shopMsg('Слоты джокеров заполнены. Продайте один из своих джокеров выше');
-    G.money -= price; G.jokers.push(it.id); G.jokerEds.push(it.ed || null);
+        G.money -= price; addJoker(it.id, it.ed);
     if(it.id === 'j102') G.seltzerLeft = 10;
     STATS.maxJokers = Math.max(STATS.maxJokers, G.jokers.length);
     if(j.rarity==='rare') STATS.rareBought++;
@@ -2186,15 +2291,9 @@ function buy(idx){
 }
 
 function sellJoker(idx){
-  const id = G.jokers[idx];
-  const j = JOKER_BY_ID[id];
-  const price = Math.floor(j.cost/2);
-  G.jokers.splice(idx, 1);
-  G.jokerEds.splice(idx, 1);
-  G.money += price;
-  sfx('buy');
-  save(); openShop(); render();
-  shopMsg(`Продан ${j.name} за $${price}`);
+  const note = doSell(idx);
+  openShop(); render();
+  if(note) shopMsg(note);
 }
 
 $('nextBtn').onclick = ()=>{
@@ -2240,7 +2339,7 @@ function hideMenu(){ $('menu').classList.remove('show'); }
 async function startNew(deckId){
   if(!isUnlocked(deckId)) return;
   Object.assign(G, {
-    seltzerLeft:0, jokerState:[], freeRerolls:0,
+    seltzerLeft:0, jokerState:[], freeRerolls:0, giftCard:0, soldCount:0, bossOff:false,
     tags:[], skips:0, pendingDouble:false,
     stake: +$('stakeSel').value || 0,
     deckId, ante:1, blindIdx:0, money:DECKS[deckId].apply.money||0,
@@ -2273,6 +2372,9 @@ $('continueBtn').onclick = ()=>{
   if(!savedRun) return;
   Object.assign(G, savedRun);  G.masterDeck = savedRun.masterDeck ? unpackDeck(savedRun.masterDeck) : newMasterDeck();
   G.jokerEds = savedRun.jokerEds || savedRun.jokers.map(()=>null);
+      G.jokerState = savedRun.jokerState || savedRun.jokers.map(()=>0);
+  G.giftCard = savedRun.giftCard || 0;
+  G.soldCount = savedRun.soldCount || 0;
   G.handLevels = savedRun.handLevels || defaultLevels();
     G.consumables = (savedRun.consumables || []).filter(id=>CONS_BY_ID[id]);   // убираем удалённые карты (например, Монету)
     G.goldPlayed = 0;
@@ -2449,7 +2551,7 @@ async function adminAddCard(){
 async function adminAddJoker(){
   if(!inRun() || !await adminAct('joker')) return;
   if(G.jokers.length >= 5) return msg('Админ: слоты джокеров заполнены');
-  G.jokers.push($('tJoker').value); G.jokerEds.push(null);
+    addJoker($('tJoker').value, null);
   save(); render(); msg('Админ: джокер добавлен');
 }
 async function adminAddCons(){
