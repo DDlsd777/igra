@@ -316,7 +316,7 @@ h2.t{text-align:center;color:var(--gold);margin:0 0 10px}
           <span><select id="tRank"></select> <select id="tSuit"></select>
           <button onclick="adminAddCard()">Добавить</button></span></div>
         <div class="item"><span>Джокер</span>
-          <span><select id="tJoker"></select> <button onclick="adminAddJoker()">Добавить</button></span></div>
+        <span><input id="tJokerSearch" placeholder="поиск" oninput="filterAdminJokers()" style="width:110px"> <select id="tJoker"></select> <button onclick="adminAddJoker()">Добавить</button></span></div>
         <div class="item"><span>Расходник</span>
           <span><select id="tCons"></select> <button onclick="adminAddCons()">Добавить</button></span></div>
         <div class="item"><span>Раунд</span>
@@ -2546,7 +2546,21 @@ function fillAdminSelects(){
   $('tCons').innerHTML = CONSUMABLES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   $('tAnte').innerHTML = Array.from({length:MAX_ANTE},(_,i)=>`<option value="${i+1}">Антэ ${i+1}</option>`).join('');
   $('tBlind').innerHTML = BLINDS.map((b,i)=>`<option value="${i}">${b.name}</option>`).join('');
-  $('tBoss').innerHTML = '<option value="">Босс: случайный</option>' + Object.entries(BOSSES).map(([k,b])=>`<option value="${k}">${b.name}</option>`).join('');
+    $('tBoss').innerHTML = '<option value="">Босс: случайный</option>' + Object.entries(BOSSES).map(([k,b])=>`<option value="${k}">${b.name}</option>`).join('');
+  filterAdminJokers();   // применяем поиск, если в строке что-то написано
+}
+
+// Поиск джокеров в админке: по названию, по id (j025) или по номеру (25)
+function filterAdminJokers(){
+  const q = ($('tJokerSearch').value || '').trim().toLowerCase();
+  const sel = $('tJoker');
+  const prev = sel.value;
+  const isNum = /^\d+$/.test(q);
+  const list = JOKERS.filter(j => !q ||
+    (isNum ? (+j.id.slice(1) === +q) : (j.name.toLowerCase().includes(q) || j.id.includes(q))));
+  sel.innerHTML = list.map(j => `<option value="${j.id}">${j.name}</option>`).join('');
+  if(list.some(j => j.id === prev)) sel.value = prev;
+}
 }
 
 async function adminAct(action){
