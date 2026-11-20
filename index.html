@@ -718,6 +718,51 @@ const creditLimit = () => G.jokers.includes('j020') ? 20 : 0;
 
 setRoundEnd('j035', ctx => (G.discardsUsedRound || 0) === 0 ? {money: 2 * ctx.discardsLeft} : {});  // Запоздалое признание
 setRoundEnd('j084', ctx => ({money: Math.floor(ctx.money / 5)}));                                    // Лунная гонка
+/* ---------- Система продажи ---------- */
+const setSell = (id, fn) => { JOKER_BY_ID[id].onSell = fn; };
+// Цена продажи: половина цены + накопленный бонус (Яйцо, Подарочная карта)
+const sellPriceAt = i => Math.floor(JOKER_BY_ID[G.jokers[i]].cost / 2) + ((G.jokerBonus || [])[i] || 0);
+// Убирает джокера из слота и синхронизирует все параллельные массивы
+function removeJokerAt(i){
+  const id = G.jokers[i];
+  G.jokers.splice(i, 1); G.jokerEds.splice(i, 1);
+  if(G.jokerBonus) G.jokerBonus.splice(i, 1);
+  return id;
+}
+// Срабатывает при продаже любого джокера (до удаления)
+function runSellHooks(i){
+  G.campfireN = (G.campfireN || 0) + 1;                       // Костёр: +1 за каждую проданную карту
+  const fn = JOKER_BY_ID[G.jokers[i]].onSell;
+  if(fn) fn(i);
+}
+setSell('j094', () => { gainTag('double'); msg('Диетическая кола: получен тег «Удвоитель»'); });
+setSell('j077', () => {                                                        // Лучадор: отключает текущего босса
+  if(G.boss){ G.boss = null; msg('Лучадор отключил эффект босса'); }
+});
+setRoundEnd('j046', ctx => {                                                   // Яйцо: +$3 к цене продажи каждый раунд
+  const i = G.jokers.indexOf('j046');
+  if(i >= 0) G.jokerBonus[i] = (G.jokerBonus[i] || 0) + 3;
+  return {};
+});
+setRoundEnd('j079', () => {                                                    // Подарочная карта: +$1 ко всем джокерам
+  G.jokerBonus = G.jokers.map((_, i) => ((G.jokerBonus || [])[i] || 0) + 1);
+  return {};
+});
+setEffect('j105', () => ({xmult: 1 + 0.25 * (G.campfireN || 0)}));             // Костёр
+setRoundEnd('j137', () => { G.invisRounds = (G.invisRounds || 0) + 1; return {}; });   // Невидимка: считаем раунды
+setBlindStart('j137', () => {                                                  // Невидимка: через 2 раунда копирует случайного джокера
+  if((G.invisRounds || 0) < 2) return;
+  const i = G.jokers.indexOf('j137');
+  if(i < 0) return;
+  removeJokerAt(i);
+  G.invisRounds = 0;
+  const others = G.jokers.filter(id => id !== 'j137');
+  if(others.length && G.jokers.length < 5){
+    const pick = others[Math.floor(Math.random() * others.length)];
+    G.jokers.push(pick); G.jokerEds.push(null); G.jokerBonus.push(0);
+    msg(`Невидимка скопировал «${JOKER_BY_ID[pick].name}»`);
+  }
+});
 
 /* ---------- Сельтцер: повтор карт в следующих 10 руках ---------- */
 setRetrigger('j102', (ctx, card) => (G.seltzerLeft > 0) ? 1 : 0);                 // Закат: на последней руке раунда все карты повторяются
@@ -1520,7 +1565,7 @@ function winBlind(){
   reward += 2 * (G.goldPlayed || 0);
   G.goldPlayed = 0;
   reward += Math.min(5, Math.max(0, Math.floor(G.money / 5)));
-  const bossNotes = b.boss ? applyTags('bossWin') : [];
+  const bossNotes = b.boss ? applyTags('bossWin') : [];  if(b.boss) G.campfireN = 0;
   G.money += reward; G.wins++; G.cleared++;
   G.best = Math.max(G.best, G.cleared);
   if(loaded.best) store.set('best', G.best);
@@ -1689,7 +1734,7 @@ function renderZoom(){
          <button class="alt" id="zoomRight" ${i===G.jokers.length-1?'disabled':''}>→</button>
        </div>`
     + ((G.boss==='emerald' && !G.idolBroken && G.active)
-        ? `<div class="moveRow"><button class="red" id="zoomSell">💰 Продать $${Math.floor(j.cost/2)}</button></div>` : '')
+        ? `<div class="moveRow"><button class="red" id="zoomSell">💰 Продать $${sellPriceAt(i)}</button></div>` : '')
     + `<div class="zoomHint">Нажмите на фон, чтобы закрыть</div>`;
   if($('zoomSell')) $('zoomSell').onclick = (e)=>{ e.stopPropagation(); sellInBattle(); };
   $('zoomLeft').onclick = (e)=>{ e.stopPropagation(); moveJoker(-1); };
@@ -1700,8 +1745,10 @@ function renderZoom(){
 function sellInBattle(){
   const i = zoomIdx, j = JOKER_BY_ID[G.jokers[i]];
   if(!j) return;
-  const price = Math.floor(j.cost/2);
-  G.jokers.splice(i,1); G.jokerEds.splice(i,1); G.money += price;
+  const price = sellPriceAt(i);
+  runSellHooks(i);
+  removeJokerAt(i);
+  G.money += price;
   G.idolBroken = true;
   $('jokerZoom').classList.remove('show');
   sfx('buy'); save(); render();
@@ -2118,7 +2165,7 @@ function openShop(){
     const ed = G.jokerEds[i];
     const edTxt = ed ? ` <small>[${EDITION_NAME[ed]}]</small>` : '';
     return `<div class="item"><span><b>${j.name}</b>${edTxt} (в слоте)<br><small>${j.desc}</small></span>
-      <button class="red" onclick="sellJoker(${i})">продать $${Math.floor(j.cost/2)}</button></div>`;
+      <button class="red" onclick="sellJoker(${i})">продать $${sellPriceAt(zoomIdx)}</button></div>`;
   }).join('');
 
   const items = G.shopStock.map((it, idx) => {
@@ -2168,6 +2215,7 @@ function buy(idx){
     if(G.money + creditLimit() < price) return shopMsg(`Не хватает денег: нужно $${price}, у вас $${G.money}`);
     if(G.jokers.length >= 5) return shopMsg('Слоты джокеров заполнены. Продайте один из своих джокеров выше');
     G.money -= price; G.jokers.push(it.id); G.jokerEds.push(it.ed || null);
+    G.jokerBonus.push(0);
     if(it.id === 'j102') G.seltzerLeft = 10;
     STATS.maxJokers = Math.max(STATS.maxJokers, G.jokers.length);
     if(j.rarity==='rare') STATS.rareBought++;
@@ -2187,11 +2235,10 @@ function buy(idx){
 }
 
 function sellJoker(idx){
-  const id = G.jokers[idx];
-  const j = JOKER_BY_ID[id];
-  const price = Math.floor(j.cost/2);
-  G.jokers.splice(idx, 1);
-  G.jokerEds.splice(idx, 1);
+  const j = JOKER_BY_ID[G.jokers[idx]];
+  const price = sellPriceAt(idx);
+  runSellHooks(idx);
+  removeJokerAt(idx);
   G.money += price;
   sfx('buy');
   save(); openShop(); render();
