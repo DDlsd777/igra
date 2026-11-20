@@ -1132,6 +1132,7 @@ function save(){
     inShop:!!G.inShop, shopStock:G.inShop ? G.shopStock : [], rerolled:!!G.rerolled,
     stake:G.stake || 0,
     seltzerLeft:G.seltzerLeft || 0,
+    greenMult:G.greenMult || 0, jokerState:G.jokerState || [], deckBase:G.deckBase || 0,
     blind:packBlind(), tags:G.tags || [], skips:G.skips || 0, pendingDouble:!!G.pendingDouble});
 }
 
@@ -2281,6 +2282,9 @@ $('continueBtn').onclick = ()=>{
   G.rerolled = G.inShop ? !!savedRun.rerolled : false;
   G.anteSeen = new Set(savedRun.anteSeen || []);
   G.handCounts = savedRun.handCounts || {};
+   G.greenMult = savedRun.greenMult || 0;
+  G.jokerState = savedRun.jokerState || [];
+  G.deckBase = savedRun.deckBase || G.masterDeck.length;   // старые сохранения: берём текущий размер колоды
   if(!BOSSES[G.anteBoss]) G.anteBoss = pickBoss(G.ante);
     G.active = true;
   hideHome();
