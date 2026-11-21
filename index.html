@@ -778,6 +778,19 @@ setEffect('j110', () => {                                                       
 });
 setEffect('j096', () => ({mult: 2 * (G.rerollsRun || 0)}));                                 // Шпаргалка: +2 за каждое обновление магазина
 setEffect('j086', () => ({mult: G.tarotsUsedRun || 0}));                                     // Гадалка: +1 за каждое использованное таро
+/* ---------- Счётчики по рукам (пакет 1) ---------- */
+setPlay('j044', info => { G.rtb = info.played.some(c => FACES.includes(c.rank)) ? 0 : (G.rtb || 0) + 1; });
+setEffect('j044', () => ({mult: G.rtb || 0}));
+setPlay('j050', () => { G.iceHands = (G.iceHands || 0) + 1; });
+setEffect('j050', () => ({chips: Math.max(0, 100 - 5 * (G.iceHands || 0))}));
+setRoundEnd('j097', () => { G.popcornMult = (G.popcornMult ?? 20) - 4; return {}; });
+setEffect('j097', () => ({mult: Math.max(0, G.popcornMult ?? 20)}));
+setPlay('j098', info => { if(hasHand(info.name, 'Две пары')) G.trousers = (G.trousers || 0) + 2; });
+setEffect('j098', () => ({mult: G.trousers || 0}));
+setPlay('j124', info => { const n = [...info.scored].filter(c => c.rank === '2').length; G.wee = (G.wee || 0) + 8 * n; });
+setEffect('j124', () => ({chips: G.wee || 0}));
+setDiscard('j100', info => { G.ramenX = Math.max(1, (G.ramenX ?? 2) - 0.01 * info.cards.length); return {}; });
+setEffect('j100', () => ({xmult: G.ramenX ?? 2}));
 setRoundEnd('j137', () => { G.invisRounds = (G.invisRounds || 0) + 1; return {}; });   // Невидимка: считаем раунды
 setBlindStart('j137', () => {                                                  // Невидимка: через 2 раунда пропадает и копирует случайного джокера
   if((G.invisRounds || 0) < 2) return;
@@ -1320,7 +1333,7 @@ function save(){
     seltzerLeft:G.seltzerLeft || 0,
     greenMult:G.greenMult || 0, jokerState:G.jokerState || [], deckBase:G.deckBase || 0,
     jokerBonus:G.jokerBonus || [], invisRounds:G.invisRounds || 0, campfireN:G.campfireN || 0,
-    rerollsRun:G.rerollsRun || 0, tarotsUsedRun:G.tarotsUsedRun || 0, roundHands:G.roundHands || [],
+    rerollsRun:G.rerollsRun || 0, tarotsUsedRun:G.tarotsUsedRun || 0, roundHands:G.roundHands || [], rtb:G.rtb || 0, iceHands:G.iceHands || 0, popcornMult:G.popcornMult, trousers:G.trousers || 0, wee:G.wee || 0, ramenX:G.ramenX,
     blind:packBlind(), tags:G.tags || [], skips:G.skips || 0, pendingDouble:!!G.pendingDouble});
 }
 
@@ -2451,6 +2464,7 @@ async function startNew(deckId){
   G.deckBase = G.masterDeck.length; G.greenMult = 0;
   G.jokerBonus = []; G.invisRounds = 0; G.campfireN = 0;
   G.rerollsRun = 0; G.tarotsUsedRun = 0; G.roundHands = [];
+  G.rtb = 0; G.iceHands = 0; G.popcornMult = undefined; G.trousers = 0; G.wee = 0; G.ramenX = undefined;
   savedRun = null;
   STATS.runs++; saveStats();
   hideMenu(); hideHome();
